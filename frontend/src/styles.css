@@ -1,0 +1,27 @@
+:root {
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: #08131f;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: clamp(3rem, 8vw, 7rem) 0 3rem;
+  background:
+    radial-gradient(circle at 80% 5%, rgb(68 215 182 / 12%), transparent 30rem),
+    radial-gradient(circle at 5% 80%, rgb(111 168 255 / 10%), transparent 28rem),
+    #08131f;
+}
+

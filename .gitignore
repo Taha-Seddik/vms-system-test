@@ -1,0 +1,26 @@
+# Local configuration and secrets
+.env
+!.env.example
+
+# .NET
+**/bin/
+**/obj/
+**/TestResults/
+*.user
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+
+# Editors and operating systems
+.idea/
+.vs/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime media and database data (named Docker volumes are preferred)
+recordings/
+postgres-data/
+
