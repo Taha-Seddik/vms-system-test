@@ -44,8 +44,14 @@ foreach ($cameraNumber in 1..4) {
     $cameraPath = "camera-$cameraNumber"
     $playlistUrl = "$HlsBaseUrl/$cameraPath/index.m3u8"
     $playlist = Wait-ForHttp -Url $playlistUrl -Name "$cameraPath HLS playlist"
+    $playlistContent = if ($playlist.Content -is [byte[]]) {
+        [System.Text.Encoding]::UTF8.GetString($playlist.Content)
+    }
+    else {
+        [string]$playlist.Content
+    }
 
-    if ($playlist.Content -notmatch "#EXTM3U") {
+    if ($playlistContent -notmatch "#EXTM3U") {
         throw "$cameraPath returned a response, but it is not an HLS playlist."
     }
 
@@ -77,4 +83,3 @@ if ($unhealthy.Count -gt 0) {
 
 Write-Host "[PASS] All Compose services are running and healthy."
 Write-Host "Step 1 foundation verification completed successfully."
-
