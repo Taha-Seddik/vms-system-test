@@ -1,22 +1,112 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ThemeProvider } from '@mui/material'
+import { MemoryRouter } from 'react-router-dom'
 import App from './App'
+import { AuthProvider } from './auth/AuthContext'
 import { theme } from './theme'
 
-describe('App', () => {
-  it('shows the Step 1 foundation and four generated cameras', () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <App />
-      </ThemeProvider>,
-    )
+const viewerLogin = {
+  accessToken: 'viewer-token',
+  expiresAt: '2099-01-01T00:00:00Z',
+  user: {
+    id: 'viewer-id',
+    username: 'viewer',
+    displayName: 'Assigned Camera Viewer',
+    role: 'Viewer',
+    assignedCameraIds: ['camera-1', 'camera-2'],
+    lastLoginAt: '2026-07-26T00:00:00Z',
+    lastActivityAt: '2026-07-26T00:00:00Z',
+  },
+}
+
+function renderApp(initialPath = '/') {
+  return render(
+    <ThemeProvider theme={theme}>
+      <MemoryRouter initialEntries={[initialPath]}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </MemoryRouter>
+    </ThemeProvider>,
+  )
+}
+
+describe('authentication and authorization UI', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('redirects an anonymous visitor to the login screen', () => {
+    renderApp()
 
     expect(
-      screen.getByRole('heading', { name: /VMS Command Center/i }),
+      screen.getByRole('heading', { name: /the right view for every role/i }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText('HLS configured')).toHaveLength(4)
-    expect(screen.getByText('Entrance')).toBeInTheDocument()
-    expect(screen.getByText('Warehouse')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /sign in securely/i }))
+      .toBeInTheDocument()
+  })
+
+  it('signs in a Viewer and renders only cameras returned by the API', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/login')) {
+        return Response.json(viewerLogin)
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([
+          {
+            id: 'camera-1',
+            name: 'Entrance',
+            location: 'Main entrance',
+            hlsUrl: 'http://localhost:8888/camera-1/index.m3u8',
+          },
+          {
+            id: 'camera-2',
+            name: 'Loading Bay',
+            location: 'Loading bay',
+            hlsUrl: 'http://localhost:8888/camera-2/index.m3u8',
+          },
+        ])
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/login')
+    fireEvent.click(screen.getByRole('button', { name: /sign in securely/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /accessible cameras/i }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Entrance')).toBeInTheDocument()
+    expect(screen.getByText('Loading Bay')).toBeInTheDocument()
+    expect(screen.queryByText('Warehouse')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /activity/i }))
+      .not.toBeInTheDocument()
+  })
+
+  it('rejects a Viewer navigation attempt to the administrator page', async () => {
+    sessionStorage.setItem('vms-auth-session', JSON.stringify(viewerLogin))
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(viewerLogin.user)
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([])
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/activity')
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { name: /accessible cameras/i }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('heading', { name: /authentication activity/i }),
+    ).not.toBeInTheDocument()
   })
 })
-

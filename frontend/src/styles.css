@@ -16,12 +16,99 @@ body {
   margin: 0;
 }
 
-.app-shell {
+.app-shell,
+.login-shell {
   min-height: 100vh;
-  padding: clamp(3rem, 8vw, 7rem) 0 3rem;
   background:
-    radial-gradient(circle at 80% 5%, rgb(68 215 182 / 12%), transparent 30rem),
-    radial-gradient(circle at 5% 80%, rgb(111 168 255 / 10%), transparent 28rem),
+    radial-gradient(circle at 82% 5%, rgb(68 215 182 / 12%), transparent 30rem),
+    radial-gradient(circle at 5% 82%, rgb(111 168 255 / 10%), transparent 28rem),
     #08131f;
 }
 
+.login-shell {
+  display: grid;
+  place-items: center;
+  padding: 3rem 0;
+}
+
+.login-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(330px, 0.85fr);
+  gap: clamp(3rem, 8vw, 7rem);
+  align-items: center;
+}
+
+.login-intro .MuiChip-root {
+  align-self: flex-start;
+}
+
+.security-note {
+  padding: 1.25rem;
+  border: 1px solid rgb(68 215 182 / 22%);
+  border-radius: 12px;
+  background: rgb(68 215 182 / 5%);
+}
+
+.login-card {
+  border: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 0 32px 80px rgb(0 0 0 / 35%);
+}
+
+.account-choice small {
+  color: #91a3b6;
+  font-size: 0.7rem;
+  text-transform: none;
+}
+
+.camera-card {
+  height: 100%;
+  border-color: rgb(255 255 255 / 10%);
+  border-top: 3px solid hsl(calc(155 + var(--camera-index) * 38) 65% 62%);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease;
+}
+
+.camera-card:hover {
+  border-color: rgb(68 215 182 / 45%);
+  transform: translateY(-2px);
+}
+
+.stream-placeholder {
+  display: grid;
+  min-height: 128px;
+  place-items: center;
+  margin: 1.5rem 0;
+  border: 1px solid rgb(255 255 255 / 7%);
+  border-radius: 8px;
+  color: #91a3b6;
+  background:
+    linear-gradient(135deg, rgb(68 215 182 / 8%), transparent),
+    repeating-linear-gradient(
+      135deg,
+      rgb(255 255 255 / 2%) 0,
+      rgb(255 255 255 / 2%) 8px,
+      transparent 8px,
+      transparent 16px
+    );
+}
+
+.metric-card {
+  max-width: 360px;
+  border: 1px solid rgb(111 168 255 / 22%);
+  background: linear-gradient(145deg, rgb(111 168 255 / 12%), #102235 60%);
+}
+
+.route-loader,
+.content-loader {
+  display: grid;
+  min-height: 50vh;
+  place-items: center;
+}
+
+@media (max-width: 800px) {
+  .login-grid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}

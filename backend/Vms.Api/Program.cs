@@ -1,3 +1,9 @@
+using System.Text.Json.Serialization;
+using Vms.Api.Auth;
+using Vms.Api.Authorization;
+using Vms.Api.Cameras;
+using Vms.Api.Data;
+
 if (args.Contains("--health-check", StringComparer.Ordinal))
 {
     var healthUrl = Environment.GetEnvironmentVariable("HEALTH_CHECK_URL")
@@ -25,6 +31,10 @@ var allowedOrigins = builder.Configuration
     .ToArray();
 
 builder.Services.AddProblemDetails();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -41,11 +51,18 @@ builder.Services.AddCors(options =>
         policy.AllowAnyHeader().AllowAnyMethod();
     });
 });
+builder.Services.AddVmsData(builder.Configuration);
+builder.Services.AddVmsAuthentication(builder.Configuration);
+builder.Services.AddVmsAuthorization();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+
+await DatabaseInitializer.InitializeAsync(app.Services);
 
 app.MapGet("/", () => Results.Ok(new
 {
@@ -65,8 +82,21 @@ app.MapGet("/api/system/info", () => Results.Ok(new
 {
     name = "Video Management System",
     foundation = "ASP.NET Core, React, PostgreSQL, MediaMTX, FFmpeg",
-    implementedStep = 1
+    implementedStep = 2
 }));
+
+app.MapAuthEndpoints();
+app.MapAccessibleCameraEndpoints();
+app.MapGet("/api/access/admin", () => Results.Ok(new
+    {
+        message = "Administrator access granted."
+    }))
+    .RequireAuthorization(AppPolicies.AdministratorOnly);
+app.MapGet("/api/access/operator", () => Results.Ok(new
+    {
+        message = "Operator access granted."
+    }))
+    .RequireAuthorization(AppPolicies.OperatorOrAdministrator);
 
 app.Run();
 return 0;
