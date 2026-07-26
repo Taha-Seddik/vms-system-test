@@ -1,6 +1,14 @@
 logLevel: info
 logDestinations: [stdout]
 
+authMethod: http
+authHTTPAddress: http://api:8080/api/media/authorize
+authHTTPExclude:
+  - action: publish
+  - action: api
+  - action: metrics
+  - action: pprof
+
 rtsp: true
 rtspAddress: :8554
 rtspTransports: [tcp]
@@ -13,7 +21,7 @@ moq: false
 hls: true
 hlsAddress: :8888
 hlsEncryption: false
-hlsAllowOrigins: ["*"]
+hlsAllowOrigins: ["http://localhost:3000", "http://localhost:5173"]
 hlsAlwaysRemux: true
 hlsVariant: mpegts
 hlsSegmentCount: 6
@@ -36,4 +44,3 @@ paths:
     source: publisher
   camera-4:
     source: publisher
-

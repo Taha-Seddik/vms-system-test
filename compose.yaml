@@ -26,7 +26,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-vms}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vms_dev_password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -48,10 +48,10 @@ services:
     restart: unless-stopped
     command: /mediamtx.yml
     ports:
-      - "${RTSP_PORT:-8554}:8554"
-      - "${HLS_PORT:-8888}:8888"
-      - "${MEDIAMTX_API_PORT:-9997}:9997"
-      - "${MEDIAMTX_METRICS_PORT:-9998}:9998"
+      - "127.0.0.1:${HLS_PORT:-8888}:8888"
+    environment:
+      MTX_HLSALLOWORIGINS: >-
+        http://localhost:${FRONTEND_PORT:-3000},http://localhost:5173
     volumes:
       - ./infra/mediamtx/mediamtx.yml:/mediamtx.yml:ro
     healthcheck:
@@ -120,7 +120,7 @@ services:
       Recording__MinimumCaptureSeconds: ${MINIMUM_CAPTURE_SECONDS:-6}
       Recording__KeyframeIntervalSeconds: ${KEYFRAME_INTERVAL_SECONDS:-30}
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "127.0.0.1:${API_PORT:-8080}:8080"
     volumes:
       - recording-data:/var/lib/vms/recordings
     depends_on:
@@ -154,7 +154,7 @@ services:
         VITE_HLS_BASE_URL: ${VITE_HLS_BASE_URL:-http://localhost:8888}
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:80"
     depends_on:
       api:
         condition: service_healthy

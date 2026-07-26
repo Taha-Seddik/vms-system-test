@@ -17,6 +17,8 @@ import {
 } from '@mui/material'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { HlsVideo } from '../components/HlsVideo'
+import { resolveHlsSource } from '../media/hls'
 import { connectCommandCenter } from '../realtime/commandCenterConnection'
 import type {
   CommandCenterSnapshot,
@@ -187,12 +189,16 @@ export function CommandCenterPage() {
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, lg: 8 }}>
               <DashboardPanel
-                title="Camera wall status"
-                subtitle="Live playback joins these tiles in Step 5"
+                title="Live multi-camera wall"
+                subtitle="Authenticated HLS video with camera and recording status"
               >
                 <Box className="command-camera-wall">
                   {dashboard.cameraHealth.map((camera) => (
-                    <CameraWallTile key={camera.id} camera={camera} />
+                    <CameraWallTile
+                      key={camera.id}
+                      camera={camera}
+                      accessToken={accessToken ?? ''}
+                    />
                   ))}
                 </Box>
               </DashboardPanel>
@@ -459,11 +465,35 @@ function DashboardPanel({
   )
 }
 
-function CameraWallTile({ camera }: { camera: DashboardCamera }) {
+function CameraWallTile({
+  camera,
+  accessToken,
+}: {
+  camera: DashboardCamera
+  accessToken: string
+}) {
+  const online =
+    camera.isEnabled && camera.connectionStatus === 'Online'
+
   return (
     <Box className={`command-camera-tile status-${camera.connectionStatus}`}>
       <Box className="command-camera-visual">
-        <span>{camera.connectionStatus}</span>
+        {online ? (
+          <HlsVideo
+            source={resolveHlsSource(camera.hlsUrl)}
+            title={camera.name}
+            zoom={1}
+            accessToken={accessToken}
+          />
+        ) : (
+          <span>{camera.connectionStatus}</span>
+        )}
+        <Chip
+          className="command-camera-health"
+          label={camera.connectionStatus}
+          size="small"
+          color={online ? 'success' : 'error'}
+        />
       </Box>
       <Stack
         direction="row"

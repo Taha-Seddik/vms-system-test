@@ -162,6 +162,7 @@ public sealed class CommandCenterService(
             camera.Id,
             camera.Name,
             camera.Location,
+            camera.HlsPath,
             camera.Group?.Name,
             camera.ConnectionStatus,
             camera.RecordingStatus,

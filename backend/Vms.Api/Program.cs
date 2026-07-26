@@ -25,11 +25,13 @@ builder.Services.AddVmsApplication(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseExceptionHandler();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<AuditWriteMiddleware>();
+app.UseVmsApiDocumentation();
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 

@@ -19,14 +19,13 @@ import {
 import { apiRequest, ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { HlsVideo } from '../components/HlsVideo'
+import { resolveHlsSource } from '../media/hls'
 import type { AccessibleCamera } from '../types/auth'
 import type {
   Recording,
   RecordingCommand,
 } from '../types/recording'
 
-const hlsBaseUrl =
-  import.meta.env.VITE_HLS_BASE_URL ?? 'http://localhost:8888'
 const layoutOptions = [1, 4, 9, 16] as const
 type WallLayout = (typeof layoutOptions)[number]
 
@@ -211,6 +210,7 @@ export function CamerasPage() {
             <LiveCameraTile
               key={camera.id}
               camera={camera}
+              accessToken={accessToken ?? ''}
               canRecord={canRecord}
               busy={busyCameraId === camera.id}
               onRecordingCommand={(action) =>
@@ -235,12 +235,14 @@ export function CamerasPage() {
 
 function LiveCameraTile({
   camera,
+  accessToken,
   canRecord,
   busy,
   onRecordingCommand,
   onNotice,
 }: {
   camera: AccessibleCamera
+  accessToken: string
   canRecord: boolean
   busy: boolean
   onRecordingCommand: (
@@ -251,9 +253,7 @@ function LiveCameraTile({
   const tileRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [zoom, setZoom] = useState(1)
-  const source = camera.hlsUrl.startsWith('http')
-    ? camera.hlsUrl
-    : `${hlsBaseUrl}${camera.hlsUrl}`
+  const source = resolveHlsSource(camera.hlsUrl)
   const online =
     camera.isEnabled !== false && camera.connectionStatus === 'Online'
   const recording = camera.recordingStatus === 'Recording'
@@ -306,6 +306,7 @@ function LiveCameraTile({
             source={source}
             title={camera.name}
             zoom={zoom}
+            accessToken={accessToken}
           />
         ) : (
           <Box className="live-video-offline">Stream unavailable</Box>

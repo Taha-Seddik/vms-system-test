@@ -11,10 +11,11 @@ interface HlsVideoProps {
   source: string
   title: string
   zoom: number
+  accessToken: string
 }
 
 export const HlsVideo = forwardRef<HTMLVideoElement, HlsVideoProps>(
-  function HlsVideo({ source, title, zoom }, forwardedRef) {
+  function HlsVideo({ source, title, zoom, accessToken }, forwardedRef) {
     const videoRef = useRef<HTMLVideoElement>(null)
     const [error, setError] = useState<string | null>(null)
 
@@ -35,6 +36,12 @@ export const HlsVideo = forwardRef<HTMLVideoElement, HlsVideoProps>(
           lowLatencyMode: true,
           backBufferLength: 20,
           liveSyncDurationCount: 2,
+          xhrSetup: (request) => {
+            request.setRequestHeader(
+              'Authorization',
+              `Bearer ${accessToken}`,
+            )
+          },
         })
         hls.loadSource(source)
         hls.attachMedia(video)
@@ -59,14 +66,9 @@ export const HlsVideo = forwardRef<HTMLVideoElement, HlsVideoProps>(
           }
         })
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = source
-        const play = () => void video.play().catch(() => undefined)
-        video.addEventListener('loadedmetadata', play)
-        return () => {
-          video.removeEventListener('loadedmetadata', play)
-          video.removeAttribute('src')
-          video.load()
-        }
+        setError(
+          'Protected live video requires a browser with Media Source support.',
+        )
       } else {
         setError('This browser does not support HLS playback.')
       }
@@ -75,7 +77,7 @@ export const HlsVideo = forwardRef<HTMLVideoElement, HlsVideoProps>(
         hls?.destroy()
         video.removeAttribute('src')
       }
-    }, [source])
+    }, [accessToken, source])
 
     return (
       <>

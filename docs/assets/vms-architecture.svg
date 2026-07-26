@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 760" role="img" aria-labelledby="title description">
+  <title id="title">Video Management System architecture</title>
+  <desc id="description">Four generated cameras publish RTSP to MediaMTX. React reads protected HLS while ASP.NET Core authorizes sessions and camera assignments, stores data in PostgreSQL, and records MP4 and JPEG media with FFmpeg.</desc>
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#eef6ff"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#115e59"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity=".1"/></filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0L12 6L0 12Z" fill="#64748b"/></marker>
+    <style>
+      .heading{font:700 28px Inter,Segoe UI,sans-serif;fill:#0f172a}.subheading{font:500 15px Inter,Segoe UI,sans-serif;fill:#475569}.title{font:700 19px Inter,Segoe UI,sans-serif;fill:#0f172a}.copy{font:500 14px Inter,Segoe UI,sans-serif;fill:#475569}.inverse-title{font:700 20px Inter,Segoe UI,sans-serif;fill:#fff}.inverse-copy{font:500 14px Inter,Segoe UI,sans-serif;fill:#dbeafe}.label{font:700 12px Inter,Segoe UI,sans-serif;fill:#334155;letter-spacing:.04em}.line{fill:none;stroke:#64748b;stroke-width:3;marker-end:url(#arrow)}.dash{fill:none;stroke:#2563eb;stroke-width:3;stroke-dasharray:9 8;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1440" height="760" rx="28" fill="#f8fafc"/>
+  <text x="64" y="62" class="heading">VMS assessment architecture</text>
+  <text x="64" y="91" class="subheading">Authenticated live media, operational APIs, real recording, and persistent system state</text>
+
+  <g>
+    <rect x="64" y="150" width="245" height="420" rx="22" fill="#fff" stroke="#cbd5e1"/>
+    <text x="94" y="190" class="title">Generated IP cameras</text><text x="94" y="216" class="copy">Four FFmpeg publishers</text>
+    <rect x="94" y="252" width="185" height="56" rx="12" fill="#eff6ff" stroke="#bfdbfe"/><circle cx="120" cy="280" r="9" fill="#2563eb"/><text x="141" y="285" class="copy">Entrance</text>
+    <rect x="94" y="324" width="185" height="56" rx="12" fill="#eff6ff" stroke="#bfdbfe"/><circle cx="120" cy="352" r="9" fill="#2563eb"/><text x="141" y="357" class="copy">Loading Bay</text>
+    <rect x="94" y="396" width="185" height="56" rx="12" fill="#eff6ff" stroke="#bfdbfe"/><circle cx="120" cy="424" r="9" fill="#2563eb"/><text x="141" y="429" class="copy">Parking</text>
+    <rect x="94" y="468" width="185" height="56" rx="12" fill="#eff6ff" stroke="#bfdbfe"/><circle cx="120" cy="496" r="9" fill="#2563eb"/><text x="141" y="501" class="copy">Warehouse</text>
+  </g>
+
+  <g>
+    <rect x="410" y="150" width="250" height="190" rx="22" fill="#0f766e"/>
+    <text x="440" y="194" class="inverse-title">MediaMTX</text><text x="440" y="224" class="inverse-copy">Internal RTSP ingest/read</text><text x="440" y="249" class="inverse-copy">Protected browser HLS</text><text x="440" y="274" class="inverse-copy">External API authorization</text>
+    <rect x="440" y="292" width="187" height="26" rx="13" fill="#ccfbf1" opacity=".95"/><text x="454" y="310" class="label" fill="#115e59">HLS REQUIRES JWT</text>
+  </g>
+
+  <g>
+    <rect x="775" y="126" width="280" height="238" rx="22" fill="#2563eb"/>
+    <text x="807" y="173" class="inverse-title">ASP.NET Core API</text><text x="807" y="204" class="inverse-copy">Identity, JWT, RBAC, sessions</text><text x="807" y="230" class="inverse-copy">Camera assignment authorization</text><text x="807" y="256" class="inverse-copy">REST, Swagger, SignalR</text><text x="807" y="282" class="inverse-copy">Health, events, search, audit</text>
+    <rect x="807" y="307" width="215" height="30" rx="15" fill="#dbeafe"/><text x="824" y="327" class="label">CONTROLLERS - SERVICES - DATA</text>
+  </g>
+
+  <g>
+    <rect x="1160" y="150" width="220" height="190" rx="22" fill="#fff" stroke="#cbd5e1"/>
+    <text x="1190" y="194" class="title">React operator UI</text><text x="1190" y="224" class="copy">Command Center live wall</text><text x="1190" y="249" class="copy">Monitoring and recording</text><text x="1190" y="274" class="copy">Playback, events, search</text><text x="1190" y="299" class="copy">Admin management</text>
+  </g>
+
+  <g>
+    <rect x="775" y="474" width="280" height="168" rx="22" fill="#fff" stroke="#cbd5e1"/>
+    <text x="807" y="518" class="title">PostgreSQL</text><text x="807" y="548" class="copy">Identity and sessions</text><text x="807" y="573" class="copy">Cameras, recordings, events</text><text x="807" y="598" class="copy">Assignments and audit logs</text>
+  </g>
+
+  <g>
+    <rect x="410" y="474" width="250" height="168" rx="22" fill="#fff" stroke="#cbd5e1"/>
+    <text x="440" y="518" class="title">Recording pipeline</text><text x="440" y="548" class="copy">FFmpeg captures real RTSP</text><text x="440" y="573" class="copy">Playable MP4 segments</text><text x="440" y="598" class="copy">JPEG keyframes every 30s</text>
+  </g>
+
+  <path d="M309 245H400" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="330" y="230" class="label">RTSP</text>
+  <path d="M660 205H765" fill="none" stroke="#2563eb" stroke-width="3" stroke-dasharray="9 8" marker-end="url(#arrow)"/><text x="681" y="187" class="label">AUTH CHECK</text>
+  <path d="M1055 212H1150" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="1074" y="195" class="label">REST + WS</text>
+  <path d="M1160 292C1068 410 790 415 665 294" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="1110" y="395" class="label">JWT-PROTECTED HLS</text>
+  <path d="M915 364V464" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="930" y="452" class="label">EF CORE</text>
+  <path d="M775 322C712 380 656 415 600 464" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="653" y="407" class="label">RECORD</text>
+  <path d="M535 474V350" fill="none" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"/><text x="551" y="419" class="label">RTSP READ</text>
+
+  <rect x="64" y="690" width="1316" height="38" rx="19" fill="#e2e8f0"/>
+  <text x="720" y="714" text-anchor="middle" class="label">HOST EXPOSURE: FRONTEND 3000 - API 8080 - AUTHENTICATED HLS 8888 - POSTGRES 5432 (LOOPBACK ONLY)</text>
+</svg>

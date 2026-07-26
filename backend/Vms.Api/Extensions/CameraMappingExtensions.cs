@@ -29,7 +29,7 @@ public static class CameraMappingExtensions
             camera.Id,
             camera.Name,
             camera.Location,
-            camera.RtspUrl,
+            Vms.Api.Utils.RtspUrlUtilities.RedactCredentials(camera.RtspUrl),
             camera.HlsPath,
             camera.Group is null
                 ? null

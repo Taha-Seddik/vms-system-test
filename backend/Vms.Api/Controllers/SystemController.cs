@@ -13,7 +13,7 @@ public sealed class SystemController : ControllerBase
         {
             service = "VMS API",
             status = "ready",
-            step = 9
+            step = 10
         });
 
     [HttpGet("/health")]
@@ -31,6 +31,6 @@ public sealed class SystemController : ControllerBase
         {
             name = "Video Management System",
             foundation = "ASP.NET Core, React, PostgreSQL, MediaMTX, FFmpeg",
-            implementedStep = 9
+            implementedStep = 10
         });
 }

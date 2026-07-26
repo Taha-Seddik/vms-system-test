@@ -14,7 +14,7 @@ current step has been reviewed and explicitly approved.
 | 7. Playback and keyframes | Completed and verified | Protected MP4 playback/download, recording filters, timeline controls, snapshots, FFmpeg JPEGs every 30 seconds, clickable keyframe seeking, 28 backend tests, 7 frontend tests, live verifier, HTML guide |
 | 8. Events, alarms, and incidents | Completed and verified | Required event types/fields, filtering, details, close lifecycle, automatic Storage Full monitoring, alarm/incident rules, SignalR updates, 34 backend tests, 8 frontend tests, live verifier, HTML guide |
 | 9. Users, search, and audit logs | Completed and verified | Identity user administration, roles and Viewer assignments, four-category search, required filters, durable audit logs, operator activity, 39 backend tests, 11 frontend tests, clean migration, live verifier, HTML guide |
-| 10. Final integration and documentation | Not started | — |
+| 10. Final integration and documentation | Completed and verified | Assignment-protected HLS, internal-only media services, Swagger/OpenAPI, RTSP credential redaction, Command Center live video wall, security headers, 44 backend tests, 12 frontend tests, live delivery verifier, architecture diagram, final checklist, and HTML guide |
 
 ## Step 1 acceptance evidence
 
@@ -254,3 +254,35 @@ current step has been reviewed and explicitly approved.
 - `docs/steps/step-09-users-search-audit.html` explains requirements, security
   flows, search semantics, audit behavior, code, proof, boundaries, and the
   gated Step 10 handoff.
+
+## Step 10 acceptance evidence
+
+- MediaMTX uses its supported external HTTP authentication flow for HLS reads.
+  HLS.js adds the current bearer token to playlists and segments.
+- The API validates JWT signature, issuer, audience, lifetime, the persisted
+  active session, enabled account, role, enabled camera, and Viewer assignment
+  before permitting media.
+- Live verification returned `401` for anonymous camera 1 and Viewer camera 3,
+  while assigned Viewer camera 1 and Operator camera 3 returned `200`.
+- Authenticated HLS decoded as H.264, 640x360 at 10 FPS through FFprobe.
+- RTSP, MediaMTX control API, and metrics are internal-only. Published
+  development services bind to loopback.
+- Swagger UI is available at `/swagger`; the bearer-aware OpenAPI document is
+  available at `/openapi/v1.json`.
+- The Command Center camera wall now renders four real authenticated HLS tiles
+  rather than status placeholders.
+- RTSP usernames/passwords are redacted from management responses. A redacted
+  edit preserves the stored source, verified both in integration tests and
+  against PostgreSQL.
+- HLS path traversal variants are rejected. API and frontend responses include
+  content-type, frame, referrer, permissions, and content-security headers.
+- `dotnet test Vms.slnx --no-restore`: 44 passed. Frontend lint, 12 tests, and
+  production build passed.
+- `scripts/verify-delivery.ps1` passed against Docker and removed its temporary
+  credential-test camera and sessions.
+- The updated foundation verifier passed with all four authenticated,
+  decodable HLS feeds and all eight healthy services.
+- `docs/assets/vms-architecture.svg` documents the final runtime boundaries.
+- `docs/steps/step-10-final-integration-delivery.html` contains dependencies,
+  flows, code excerpts, final proof, assumptions, and the complete PDF
+  deliverables checklist.

@@ -619,8 +619,10 @@ body {
 }
 
 .command-camera-visual {
+  position: relative;
   display: grid;
-  min-height: 96px;
+  min-height: 150px;
+  overflow: hidden;
   place-items: center;
   color: #64748b;
   background:
@@ -639,6 +641,24 @@ body {
   font-weight: 750;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.command-camera-visual .live-video {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+}
+
+.command-camera-visual .live-video-error {
+  z-index: 1;
+}
+
+.command-camera-health {
+  position: absolute !important;
+  z-index: 2;
+  top: 0.55rem;
+  left: 0.55rem;
 }
 
 .command-camera-tile.status-Online .command-camera-visual {

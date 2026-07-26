@@ -103,8 +103,17 @@ public sealed class CameraManagementService(
                 "Stop the active recording before editing this camera.");
         }
 
+        var requestedRtspUrl = ResolveUpdatedRtspUrl(
+            camera.RtspUrl,
+            request.RtspUrl);
+        if (requestedRtspUrl is null)
+        {
+            return CameraMutationResult.Invalid(
+                "Replace the redacted RTSP URL completely when changing the camera source.");
+        }
+
         var validationError = await ValidateConfigurationAsync(
-            request.RtspUrl,
+            requestedRtspUrl,
             request.HlsPath,
             request.GroupId,
             cancellationToken);
@@ -115,12 +124,12 @@ public sealed class CameraManagementService(
 
         var sourceChanged = !string.Equals(
             camera.RtspUrl,
-            request.RtspUrl.Trim(),
+            requestedRtspUrl,
             StringComparison.Ordinal);
 
         camera.Name = request.Name.Trim();
         camera.Location = request.Location.Trim();
-        camera.RtspUrl = request.RtspUrl.Trim();
+        camera.RtspUrl = requestedRtspUrl;
         camera.HlsPath = NormalizeHlsPath(request.HlsPath);
         camera.GroupId = request.GroupId;
         camera.UpdatedAt = DateTimeOffset.UtcNow;
@@ -212,9 +221,13 @@ public sealed class CameraManagementService(
             return "RTSP URL must be an absolute rtsp:// or rtsps:// address.";
         }
 
-        if (!hlsPath.Trim().StartsWith('/'))
+        var normalizedHlsPath = hlsPath.Trim();
+        if (!normalizedHlsPath.StartsWith('/')
+            || normalizedHlsPath.StartsWith("//", StringComparison.Ordinal)
+            || normalizedHlsPath.Contains("..", StringComparison.Ordinal)
+            || normalizedHlsPath.Contains('\\'))
         {
-            return "HLS path must begin with '/'.";
+            return "HLS path must be a contained absolute path without traversal.";
         }
 
         if (groupId.HasValue
@@ -229,6 +242,24 @@ public sealed class CameraManagementService(
     }
 
     private static string NormalizeHlsPath(string hlsPath) => hlsPath.Trim();
+
+    private static string? ResolveUpdatedRtspUrl(
+        string existingUrl,
+        string requestedUrl)
+    {
+        var normalized = requestedUrl.Trim();
+        if (!normalized.Contains("***", StringComparison.Ordinal))
+        {
+            return normalized;
+        }
+
+        return string.Equals(
+            normalized,
+            RtspUrlUtilities.RedactCredentials(existingUrl),
+            StringComparison.Ordinal)
+            ? existingUrl
+            : null;
+    }
 }
 
 public enum CameraMutationError

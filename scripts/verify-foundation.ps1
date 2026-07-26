@@ -13,13 +13,18 @@ function Wait-ForHttp {
         [Parameter(Mandatory)]
         [string]$Url,
         [Parameter(Mandatory)]
-        [string]$Name
+        [string]$Name,
+        [hashtable]$Headers = @{}
     )
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
         try {
-            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5
+            $response = Invoke-WebRequest `
+                -Uri $Url `
+                -Headers $Headers `
+                -UseBasicParsing `
+                -TimeoutSec 5
             if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
                 Write-Host "[PASS] $Name responded at $Url"
                 return $response
@@ -40,45 +45,73 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 Wait-ForHttp -Url "$ApiBaseUrl/health" -Name "API" | Out-Null
 Wait-ForHttp -Url "$FrontendBaseUrl/health" -Name "Frontend" | Out-Null
 
-foreach ($cameraNumber in 1..4) {
-    $cameraPath = "camera-$cameraNumber"
-    $playlistUrl = "$HlsBaseUrl/$cameraPath/index.m3u8"
-    $playlist = Wait-ForHttp -Url $playlistUrl -Name "$cameraPath HLS playlist"
-    $playlistContent = if ($playlist.Content -is [byte[]]) {
-        [System.Text.Encoding]::UTF8.GetString($playlist.Content)
-    }
-    else {
-        [string]$playlist.Content
-    }
-
-    if ($playlistContent -notmatch "#EXTM3U") {
-        throw "$cameraPath returned a response, but it is not an HLS playlist."
-    }
-
-    & docker compose exec -T camera-1 `
-        ffprobe `
-        -v error `
-        -rw_timeout 10000000 `
-        -select_streams "v:0" `
-        -show_entries "stream=codec_name,width,height,r_frame_rate" `
-        -of json `
-        "http://mediamtx:8888/$cameraPath/index.m3u8"
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "ffprobe could not decode video from $cameraPath."
-    }
-
-    Write-Host "[PASS] $cameraPath contains decodable video."
+$login = Invoke-RestMethod `
+    -Uri "$ApiBaseUrl/api/auth/login" `
+    -Method Post `
+    -ContentType "application/json" `
+    -Body (@{ username = "admin"; password = "Admin123!" } | ConvertTo-Json)
+$adminToken = $login.accessToken
+$mediaHeaders = @{
+    Authorization = "Bearer $adminToken"
+    Cookie = "cookieCheck=1"
 }
 
-$containerRows = docker compose ps --format json | ConvertFrom-Json
-$unhealthy = @($containerRows | Where-Object {
-    $_.State -ne "running" -or ($_.Health -and $_.Health -ne "healthy")
-})
+try {
+    foreach ($cameraNumber in 1..4) {
+        $cameraPath = "camera-$cameraNumber"
+        $playlistUrl = "$HlsBaseUrl/$cameraPath/index.m3u8?cookieCheck=1"
+        $playlist = Wait-ForHttp `
+            -Url $playlistUrl `
+            -Name "$cameraPath authenticated HLS playlist" `
+            -Headers $mediaHeaders
+        $playlistContent = if ($playlist.Content -is [byte[]]) {
+            [System.Text.Encoding]::UTF8.GetString($playlist.Content)
+        }
+        else {
+            [string]$playlist.Content
+        }
 
-if ($unhealthy.Count -gt 0) {
-    $unhealthy | Format-Table Name, State, Health
-    throw "One or more Compose services are not running and healthy."
+        if ($playlistContent -notmatch "#EXTM3U") {
+            throw "$cameraPath returned a response, but it is not an HLS playlist."
+        }
+
+        & docker compose exec -T camera-1 `
+            ffprobe `
+            -v error `
+            -rw_timeout 10000000 `
+            -headers "Authorization: Bearer $adminToken`r`n" `
+            -select_streams "v:0" `
+            -show_entries "stream=codec_name,width,height,r_frame_rate" `
+            -of json `
+            "http://mediamtx:8888/$cameraPath/index.m3u8"
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "ffprobe could not decode authenticated video from $cameraPath."
+        }
+
+        Write-Host "[PASS] $cameraPath contains decodable authenticated video."
+    }
+
+    $containerRows = docker compose ps --format json | ConvertFrom-Json
+    $unhealthy = @($containerRows | Where-Object {
+        $_.State -ne "running" -or ($_.Health -and $_.Health -ne "healthy")
+    })
+
+    if ($unhealthy.Count -gt 0) {
+        $unhealthy | Format-Table Name, State, Health
+        throw "One or more Compose services are not running and healthy."
+    }
+}
+finally {
+    try {
+        Invoke-RestMethod `
+            -Uri "$ApiBaseUrl/api/auth/logout" `
+            -Method Post `
+            -Headers @{ Authorization = "Bearer $adminToken" } | Out-Null
+    }
+    catch {
+        Write-Warning "Foundation verification session could not be logged out."
+    }
 }
 
 Write-Host "[PASS] All Compose services are running and healthy."

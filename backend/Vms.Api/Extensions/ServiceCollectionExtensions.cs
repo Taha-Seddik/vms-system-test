@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
 
         services.AddProblemDetails();
         services.AddSignalR();
+        services.AddVmsApiDocumentation();
         services
             .AddControllers()
             .AddJsonOptions(options =>
@@ -72,6 +73,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CameraManagementService>();
         services.AddScoped<CommandCenterService>();
         services.AddScoped<EventService>();
+        services.AddScoped<MediaAuthorizationService>();
         services.AddScoped<RecordingService>();
         services.AddScoped<SessionValidationService>();
         services.AddScoped<SearchService>();

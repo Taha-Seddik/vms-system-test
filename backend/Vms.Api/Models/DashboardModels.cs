@@ -30,6 +30,7 @@ public sealed record DashboardCameraResponse(
     string Id,
     string Name,
     string Location,
+    string HlsUrl,
     string? Group,
     CameraConnectionStatus ConnectionStatus,
     CameraRecordingStatus RecordingStatus,

@@ -74,6 +74,7 @@ const commandCenterSnapshot = {
       id: 'camera-1',
       name: 'Entrance',
       location: 'Main entrance',
+      hlsUrl: '/camera-1/index.m3u8',
       group: 'Perimeter',
       connectionStatus: 'Online',
       recordingStatus: 'NotRecording',
@@ -323,6 +324,10 @@ describe('authentication and authorization UI', () => {
       }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Live streams')).toBeInTheDocument()
+    expect(screen.getByText('Live multi-camera wall')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Entrance live video'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Active users')).toBeInTheDocument()
     expect(screen.getByText('Storage health')).toBeInTheDocument()
     expect(screen.getByText('Active alarms')).toBeInTheDocument()

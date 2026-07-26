@@ -3,38 +3,37 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Steps 1 through 7**: the application/media
-foundation, Identity-based authentication and role authorization, Viewer
-camera assignments, persistent camera management, FFprobe connection testing,
-automatic health monitoring, heartbeats, connectivity events, and a real-time
-operational command center, multi-camera HLS monitoring, and real FFmpeg
-recording workflows with protected playback and keyframe navigation.
+The assessment is complete through **Step 10**. It includes Identity-based
+authentication, role and Viewer-assignment authorization, camera management
+and health monitoring, a real-time Command Center with a protected live wall,
+real FFmpeg recording, protected playback and keyframes, events and alarms,
+user administration, global search, audit logs, OpenAPI/Swagger, security
+hardening, Docker deployment, and repeatable delivery verification.
 
 ## Architecture
 
-```text
-Four FFmpeg generators
-        │ RTSP/TCP
-        ▼
-     MediaMTX ────── HLS ──────► Browser / React frontend
-        │
-        └──── control API and metrics
+![VMS architecture](docs/assets/vms-architecture.svg)
 
-React frontend ───── HTTP ─────► ASP.NET Core API ─────► PostgreSQL
-```
+Four FFmpeg generators publish RTSP inside the Docker network. MediaMTX
+converts those feeds to HLS, but every browser read is authorized by the API
+using the existing JWT, active session, role, camera state, and Viewer
+assignment. The API stores operational data in PostgreSQL and uses FFmpeg to
+write real MP4/JPEG media to the recording volume.
 
 | Service | Host URL/port | Purpose |
 |---|---|---|
 | Frontend | <http://localhost:3000> | React/TypeScript application |
 | API | <http://localhost:8080> | ASP.NET Core API |
 | API health | <http://localhost:8080/health> | API liveness check |
-| MediaMTX HLS | <http://localhost:8888> | Browser-compatible live streams |
-| MediaMTX API | <http://localhost:9997> | Local media-server health/control API |
-| MediaMTX metrics | <http://localhost:9998/metrics> | Media pipeline metrics |
-| RTSP | `rtsp://localhost:8554` | Camera ingest/read endpoint |
-| PostgreSQL | `localhost:5432` | Application database |
+| Swagger UI | <http://localhost:8080/swagger> | Interactive REST API documentation |
+| OpenAPI JSON | <http://localhost:8080/openapi/v1.json> | Machine-readable API specification |
+| MediaMTX HLS | <http://localhost:8888> | JWT-protected browser live streams |
+| RTSP | `mediamtx:8554` | Internal-only camera ingest/read endpoint |
+| MediaMTX API/metrics | `mediamtx:9997/9998` | Internal-only health and metrics |
+| PostgreSQL | `localhost:5432` | Loopback-bound application database |
 
-The four HLS playlists are:
+The four HLS paths intentionally return `401` without a valid JWT. Use the
+application rather than opening them anonymously:
 
 - <http://localhost:8888/camera-1/index.m3u8>
 - <http://localhost:8888/camera-2/index.m3u8>
@@ -102,8 +101,23 @@ The assessment stack runs through Linux containers. On Windows, install:
 
    Official download: <https://dotnet.microsoft.com/download>
 
-Git, Node.js, npm, FFmpeg, and FFprobe were already available on the original
-development host.
+4. **Git and Node.js 24** (needed for source control and local frontend checks)
+
+   ```powershell
+   winget install --exact --id Git.Git
+   winget install --exact --id OpenJS.NodeJS.24
+   ```
+
+   Open a new terminal and verify:
+
+   ```powershell
+   git --version
+   node --version
+   npm --version
+   ```
+
+FFmpeg and FFprobe run inside the Docker images. A host FFmpeg installation is
+optional because the verification scripts execute media probes in containers.
 
 ## One-command startup
 
@@ -221,6 +235,19 @@ The script creates a temporary Viewer, verifies assignment-limited access,
 changes its assignment/password/role, proves session revocation, searches all
 four resource categories, checks role-sensitive results and filters, confirms
 durable Administrator/Operator audit records, and deletes the temporary user.
+
+Verify final delivery security, OpenAPI, protected HLS, and documentation:
+
+```powershell
+.\scripts\verify-delivery.ps1
+```
+
+The Step 10 verifier proves that anonymous and unassigned Viewer HLS requests
+are rejected while assigned Viewer and Operator requests work. It decodes
+authenticated H.264, checks Swagger/OpenAPI, internal-only media ports,
+Command Center live-wall sources, security headers, RTSP credential redaction,
+safe redacted updates, system completion metadata, and temporary-resource
+cleanup.
 
 Local source checks:
 
@@ -440,6 +467,32 @@ Command Center.
 | `GET /api/search` | Administrator, Operator | Search cameras, recordings, events, and permitted users |
 | `GET /api/audit-logs` | Administrator | Filter durable audit records |
 
+## Step 10 final integration and delivery
+
+MediaMTX delegates HLS read authorization to the API. HLS.js attaches the
+signed JWT to the master playlist, variant playlist, and media-segment
+requests. The API validates the token, persisted session, enabled account,
+role, camera state, and Viewer assignment before MediaMTX releases media.
+Anonymous and unassigned-camera reads return `401`.
+
+RTSP ingest/read, the MediaMTX control API, and metrics remain inside the
+Docker network. Published development ports bind to loopback. Camera-management
+responses redact RTSP usernames and passwords; submitting the unchanged
+redacted value preserves the stored source during ordinary edits.
+
+The Command Center now contains a real four-camera authenticated HLS wall in
+addition to its operational metrics and event panels.
+
+REST documentation:
+
+| URL | Purpose |
+|---|---|
+| <http://localhost:8080/swagger> | Interactive Swagger UI |
+| <http://localhost:8080/openapi/v1.json> | OpenAPI v1 JSON document |
+
+In Swagger, call `POST /api/auth/login`, copy `accessToken`, select
+**Authorize**, and enter the token. Swagger supplies the `Bearer` prefix.
+
 ## Repository layout
 
 ```text
@@ -467,9 +520,10 @@ scripts/
   verify-playback.ps1      End-to-end Step 7 playback/keyframe verification
   verify-events.ps1        End-to-end Step 8 event/alarm verification
   verify-users-search-audit.ps1 End-to-end Step 9 verification
+  verify-delivery.ps1      Final OpenAPI/media/security/delivery verification
 docs/
   index.html               HTML implementation documentation home
-  assets/                  Shared documentation styling
+  assets/                  Shared styling and final architecture diagram
   steps/                   One implementation guide per approved step
 compose.yaml               Complete local stack
 PROGRESS.md                Gated assessment progress
@@ -510,6 +564,9 @@ The Step 8 guide is:
 The Step 9 guide is:
 [`docs/steps/step-09-users-search-audit.html`](docs/steps/step-09-users-search-audit.html).
 
+The Step 10 guide and complete requirements checklist are:
+[`docs/steps/step-10-final-integration-delivery.html`](docs/steps/step-10-final-integration-delivery.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -520,9 +577,39 @@ The generated feeds use 640×360 H.264 video at 10 FPS and 500 Kbit/s so four
 feeds can run comfortably on a typical laptop. Each feed has a unique label and
 color treatment.
 
-## Scope
+## Reviewer walkthrough
 
-Final API documentation, validation/security review, responsive-state polish,
-screenshots, and the complete requirements checklist remain gated by Step 10.
-The raw local MediaMTX HLS port is not yet protected; media authorization
-hardening is scheduled for Step 10.
+After startup, a useful ten-minute review is:
+
+1. Sign in as Administrator and inspect the live Command Center wall.
+2. Open Swagger, log in through the API, authorize, and inspect protected
+   routes.
+3. Start and stop a manual recording from Live Monitoring.
+4. Open Playback, seek, change speed, select a keyframe, take a snapshot, and
+   download the MP4.
+5. Simulate motion and confirm the event plus real event recording.
+6. Sign in as Viewer in a private window and confirm only camera 1 and camera 2
+   are listed and playable.
+7. Run `.\scripts\verify-delivery.ps1` for repeatable final proof.
+
+## Assumptions and limitations
+
+- Four deterministic FFmpeg RTSP feeds replace physical cameras.
+- The 9 and 16 layouts intentionally contain empty cells.
+- Motion is simulated, but it creates a real event and real recording.
+- Development uses loopback HTTP and documented demo credentials. A real
+  deployment requires TLS, a secret manager, credential rotation, backups,
+  monitoring, and a production database policy.
+- Protected live playback requires HLS.js and Media Source Extensions.
+- Events represent assessment-level incidents; there is no duplicate incident
+  subsystem.
+- Search is bounded PostgreSQL querying rather than a separate search engine.
+- ONVIF, PTZ, AI detection, GPU acceleration, Kubernetes, high availability,
+  and multi-site federation are intentionally outside the assessment scope.
+
+## Assessment delivery status
+
+All minimum deliverables in the supplied PDF are implemented and backed by
+automated or live verification. The complete requirement mapping and final
+technical explanation are in the
+[Step 10 delivery guide](docs/steps/step-10-final-integration-delivery.html).

@@ -1,8 +1,13 @@
+using System.ComponentModel.DataAnnotations;
 using Vms.Api.Domain;
 
 namespace Vms.Api.Models;
 
-public sealed record LoginRequest(string Username, string Password);
+public sealed record LoginRequest(
+    [param: Required, StringLength(100, MinimumLength = 1)]
+    string Username,
+    [param: Required, StringLength(200, MinimumLength = 1)]
+    string Password);
 
 public sealed record AuthenticatedUserResponse(
     Guid Id,

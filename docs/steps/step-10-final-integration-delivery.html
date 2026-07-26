@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Step 10 VMS final integration, security, OpenAPI, validation, and delivery evidence.">
+    <title>Step 10 - Final integration and delivery</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 10 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#dependencies">Dependencies and reuse</a></li>
+          <li><a href="#architecture">Final architecture</a></li>
+          <li><a href="#media">Protected media flow</a></li>
+          <li><a href="#openapi">OpenAPI and validation</a></li>
+          <li><a href="#hardening">Security hardening</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#checklist">PDF requirements checklist</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#understand">What to understand</a></li>
+          <li><a href="#limitations">Assumptions and limitations</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 10
+            <span class="badge">Delivery verified</span>
+          </div>
+          <h1>Final integration and delivery</h1>
+          <p class="lede">
+            Step 10 closes the assessment with camera-level media
+            authorization, interactive REST documentation, a real Command
+            Center video wall, credential redaction, security headers, final
+            tests, clean Docker proof, and a complete PDF-to-code checklist.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Backend tests:</strong> 44</span>
+            <span><strong>Frontend tests:</strong> 12</span>
+            <span><strong>Deployment:</strong> Docker Compose</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The PDF requires secure authentication and RBAC, Docker
+            deployment, REST API documentation, responsive operator
+            interfaces, and a README with setup instructions. The final review
+            also confirmed that assigned-camera authorization must protect the
+            actual media bytes, not only the camera-list API.
+          </p>
+          <div class="callout">
+            A feature is complete only when its live path is protected and
+            measurable. Step 10 tests anonymous, assigned Viewer, unassigned
+            Viewer, Operator, and Administrator HLS requests.
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <div class="grid three">
+            <article class="card"><h3>Protected HLS</h3><p>MediaMTX delegates browser reads to the API. JWT validity, session revocation, role, camera state, and Viewer assignment are checked.</p></article>
+            <article class="card"><h3>Documented REST API</h3><p>Swagger UI and an OpenAPI JSON document describe the controller routes and JWT bearer authentication.</p></article>
+            <article class="card"><h3>Submission proof</h3><p>A final verifier checks security, real media decoding, OpenAPI, credential redaction, live-wall sources, headers, ports, and cleanup.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>3. Dependencies and reuse</h2>
+          <div class="grid three">
+            <article class="card"><h3>Swashbuckle 10.2.3</h3><p>The only new application package. It generates OpenAPI from ASP.NET Core controllers and hosts the embedded Swagger UI.</p></article>
+            <article class="card"><h3>MediaMTX external auth</h3><p>Uses the media server's built-in HTTP authorization contract; no custom media proxy or duplicated stream server was added.</p></article>
+            <article class="card"><h3>Existing Identity and HLS.js</h3><p>The existing JWT/session boundary validates media. HLS.js supplies the same token on every browser media request.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="architecture">
+          <h2>4. Final architecture</h2>
+          <p>
+            The browser receives operational data through the API and video
+            through MediaMTX. MediaMTX asks the API before each HLS read.
+            RTSP, the MediaMTX control API, and metrics are internal-only.
+          </p>
+          <img src="../assets/vms-architecture.svg" alt="Final VMS architecture showing authenticated HLS and recording" style="width:100%;border:1px solid #dbe4ef;border-radius:16px">
+        </section>
+
+        <section class="section" id="media">
+          <h2>5. Protected media flow</h2>
+          <div class="flow">
+            <div class="flow-step"><span>1</span><div><h3>React loads an assigned camera</h3><p>HLS.js adds the current JWT to the playlist and every segment request.</p></div></div>
+            <div class="flow-step"><span>2</span><div><h3>MediaMTX asks the API</h3><p>The external-auth payload contains the token, read action, HLS protocol, and camera path.</p></div></div>
+            <div class="flow-step"><span>3</span><div><h3>The API validates the boundary</h3><p>Signature, issuer, audience, expiry, session, account, role, camera, and Viewer assignment are checked.</p></div></div>
+            <div class="flow-step"><span>4</span><div><h3>Media is allowed or rejected</h3><p>A successful response releases HLS. Otherwise MediaMTX returns 401 without exposing media.</p></div></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Request</th><th>Expected</th><th>Verified</th></tr></thead>
+              <tbody>
+                <tr><td>Anonymous - camera 1</td><td>401</td><td>Yes</td></tr>
+                <tr><td>Viewer - assigned camera 1</td><td>200</td><td>Yes</td></tr>
+                <tr><td>Viewer - unassigned camera 3</td><td>401</td><td>Yes</td></tr>
+                <tr><td>Operator/Administrator</td><td>200 for enabled cameras</td><td>Yes</td></tr>
+                <tr><td>Revoked session</td><td>401</td><td>Yes</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="openapi">
+          <h2>6. OpenAPI and validation</h2>
+          <div class="grid two">
+            <article class="card"><h3>Swagger UI</h3><p><code>http://localhost:8080/swagger</code> provides interactive route discovery and JWT authorization.</p></article>
+            <article class="card"><h3>Machine-readable specification</h3><p><code>http://localhost:8080/openapi/v1.json</code> supports tools and reviewers.</p></article>
+          </div>
+          <p>
+            Controller request records use data annotations and automatic
+            <code>[ApiController]</code> validation. Step 10 bounds login
+            fields and rejects unsafe HLS path traversal variants.
+          </p>
+        </section>
+
+        <section class="section" id="hardening">
+          <h2>7. Security hardening</h2>
+          <div class="grid two">
+            <article class="card"><h3>RTSP credentials</h3><p>Management responses redact username/password. Submitting the unchanged placeholder safely preserves the stored secret.</p></article>
+            <article class="card"><h3>Process and path safety</h3><p>FFmpeg/FFprobe use <code>ArgumentList</code> without a shell. Media paths remain contained under the storage root.</p></article>
+            <article class="card"><h3>Reduced host exposure</h3><p>RTSP, MediaMTX API, and metrics have no host bindings. Development ports bind to loopback.</p></article>
+            <article class="card"><h3>Browser headers</h3><p>API and Nginx add content-type, frame, referrer, permissions, and content-security protections.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important code</h2>
+          <h3>MediaMTX delegates read authorization</h3>
+          <pre><code>authMethod: http
+authHTTPAddress: http://api:8080/api/media/authorize
+authHTTPExclude:
+  - action: publish
+  - action: api
+  - action: metrics</code></pre>
+
+          <h3>HLS.js sends the existing JWT</h3>
+          <pre><code>xhrSetup: (request) =&gt; {
+  request.setRequestHeader(
+    'Authorization',
+    `Bearer ${accessToken}`,
+  )
+}</code></pre>
+
+          <h3>Swagger describes the actual controller surface</h3>
+          <pre><code>app.UseSwagger(options =&gt;
+  options.RouteTemplate = "openapi/{documentName}.json");
+app.UseSwaggerUI(options =&gt; {
+  options.SwaggerEndpoint(
+    "/openapi/v1.json",
+    "Video Management System API v1");
+});</code></pre>
+        </section>
+
+        <section class="section" id="checklist">
+          <h2>9. PDF requirements checklist</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Minimum deliverable</th><th>Implementation</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Authentication and RBAC</td><td>Identity, JWT, sessions, policies, assignment-protected HLS</td><td>Verified</td></tr>
+                <tr><td>Camera Management</td><td>CRUD, groups, enable/disable, FFprobe, health and heartbeat</td><td>Verified</td></tr>
+                <tr><td>Multi-camera Live View</td><td>1/4/9/16 layouts and Command Center live wall</td><td>Verified</td></tr>
+                <tr><td>Recording and Playback</td><td>Manual, continuous, event MP4; seek, speed, snapshot, download</td><td>Verified</td></tr>
+                <tr><td>Keyframe Timeline</td><td>JPEG at zero and every 30 seconds; click-to-seek</td><td>Verified</td></tr>
+                <tr><td>Central Command Center</td><td>Live wall, events, failures, alarms, storage, incidents, activity, SignalR</td><td>Verified</td></tr>
+                <tr><td>Event Management</td><td>Eight types, fields, filters, details, close action</td><td>Verified</td></tr>
+                <tr><td>Search and Filters</td><td>Cameras, recordings, events, users and required filters</td><td>Verified</td></tr>
+                <tr><td>Docker Deployment</td><td>Eight services, health checks, persistent volumes</td><td>Verified</td></tr>
+                <tr><td>REST API Documentation</td><td>Swagger UI and OpenAPI JSON</td><td>Verified</td></tr>
+                <tr><td>README setup instructions</td><td>Prerequisites, startup, accounts, verification, assumptions</td><td>Verified</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>10. Verification evidence</h2>
+          <div class="grid three">
+            <article class="card"><h3>Backend</h3><p>44 tests pass with zero build warnings or errors.</p></article>
+            <article class="card"><h3>Frontend</h3><p>12 tests, ESLint, TypeScript, and production build pass.</p></article>
+            <article class="card"><h3>Live stack</h3><p>Eight healthy containers, protected HLS, H.264, MP4/JPEG, Swagger, SignalR, and cleanup.</p></article>
+          </div>
+          <pre><code>docker compose up --build -d
+
+dotnet test Vms.slnx --no-restore
+
+Push-Location frontend
+npm run lint
+npm test -- --run
+npm run build
+Pop-Location
+
+.\scripts\verify-delivery.ps1</code></pre>
+        </section>
+
+        <section class="section" id="understand">
+          <h2>11. What you should understand</h2>
+          <div class="grid two">
+            <article class="card"><h3>API authorization was not enough</h3><p>A hidden UI link does not protect video. The media server validates identity and assignment for playlists and segments.</p></article>
+            <article class="card"><h3>RTSP and HLS have different boundaries</h3><p>RTSP is internal service traffic. HLS crosses into the browser and requires the user JWT.</p></article>
+            <article class="card"><h3>Swagger is executable documentation</h3><p>It is generated from controllers and models, reducing drift from the real REST surface.</p></article>
+            <article class="card"><h3>Delivery proof is repeatable</h3><p>The verifier creates a temporary credential camera, tests it, and removes it.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="limitations">
+          <h2>12. Assumptions and limitations</h2>
+          <ul>
+            <li>Four deterministic generated RTSP feeds replace physical cameras.</li>
+            <li>The 9/16 layouts contain empty cells because four demo cameras are sufficient.</li>
+            <li>Motion is simulated but creates a real event and recording.</li>
+            <li>Development uses loopback HTTP and documented demo credentials; production needs TLS and external secret management.</li>
+            <li>Protected live playback requires HLS.js and Media Source Extensions.</li>
+            <li>ONVIF, PTZ, AI detection, GPU acceleration, Kubernetes, and high availability remain out of scope.</li>
+          </ul>
+          <div class="next-step">
+            <span>Assessment complete</span>
+            <strong>All ten approved implementation steps are complete.</strong>
+            <p>The repository is ready for reviewer setup and demonstration after final Git delivery.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

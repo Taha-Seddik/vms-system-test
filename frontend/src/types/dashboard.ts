@@ -42,6 +42,7 @@ export interface DashboardCamera {
   id: string
   name: string
   location: string
+  hlsUrl: string
   group: string | null
   connectionStatus: CameraConnectionStatus
   recordingStatus: CameraRecordingStatus
