@@ -1,255 +1,128 @@
-# Video Management System Assessment
+# Video Management System (VMS)
 
-A lean full-stack Video Management System proof of concept built in gated steps
-from the supplied technical assessment.
+## Intro
 
-The assessment is complete through **Step 10**. It includes Identity-based
-authentication, role and Viewer-assignment authorization, camera management
-and health monitoring, a real-time Command Center with a protected live wall,
-real FFmpeg recording, protected playback and keyframes, events and alarms,
-user administration, global search, audit logs, OpenAPI/Swagger, security
-hardening, Docker deployment, and repeatable delivery verification.
+Full-stack Video Management System built for the Senior Full Stack Developer
+technical assessment. It provides role-based access, camera management, live
+monitoring, real recording and playback, events, search, audit logs, and a
+real-time operational dashboard.
 
-## Architecture
+Four local FFmpeg camera generators are included, so the complete system can be
+reviewed without physical cameras or unreliable public RTSP feeds.
 
-![VMS architecture](docs/assets/vms-architecture.svg)
+## Main Features
 
-Four FFmpeg generators publish RTSP inside the Docker network. MediaMTX
-converts those feeds to HLS, but every browser read is authorized by the API
-using the existing JWT, active session, role, camera state, and Viewer
-assignment. The API stores operational data in PostgreSQL and uses FFmpeg to
-write real MP4/JPEG media to the recording volume.
+- ASP.NET Core Identity, JWT authentication, and Administrator/Operator/Viewer roles
+- Viewer-to-camera assignments
+- Camera groups, CRUD, FFprobe connection testing, and automatic health monitoring
+- Protected HLS live monitoring with 1/4/9/16 camera layouts
+- Manual, continuous, and motion-event FFmpeg recording to playable MP4 files
+- Recording playback, seeking, speed control, snapshots, downloads, and JPEG keyframes
+- Events, alarms, incidents, user management, global search, and audit logs
+- SignalR real-time dashboard updates with polling fallback
+- Swagger/OpenAPI and Docker Compose deployment
 
-| Service | Host URL/port | Purpose |
-|---|---|---|
-| Frontend | <http://localhost:3000> | React/TypeScript application |
-| API | <http://localhost:8080> | ASP.NET Core API |
-| API health | <http://localhost:8080/health> | API liveness check |
-| Swagger UI | <http://localhost:8080/swagger> | Interactive REST API documentation |
-| OpenAPI JSON | <http://localhost:8080/openapi/v1.json> | Machine-readable API specification |
-| MediaMTX HLS | <http://localhost:8888> | JWT-protected browser live streams |
-| RTSP | `mediamtx:8554` | Internal-only camera ingest/read endpoint |
-| MediaMTX API/metrics | `mediamtx:9997/9998` | Internal-only health and metrics |
-| PostgreSQL | `localhost:5432` | Loopback-bound application database |
+## Tech Stack
 
-The four HLS paths intentionally return `401` without a valid JWT. Use the
-application rather than opening them anonymously:
+- **Backend:** ASP.NET Core 10, Entity Framework Core, ASP.NET Core Identity, SignalR
+- **Frontend:** React, TypeScript, Vite, Material UI, HLS.js
+- **Database:** PostgreSQL
+- **Media:** MediaMTX, FFmpeg, FFprobe
+- **Deployment:** Docker Compose
+- **Testing:** xUnit, Vitest, Testing Library, PowerShell integration scripts
 
-- <http://localhost:8888/camera-1/index.m3u8>
-- <http://localhost:8888/camera-2/index.m3u8>
-- <http://localhost:8888/camera-3/index.m3u8>
-- <http://localhost:8888/camera-4/index.m3u8>
+## Requirements
 
-## Windows prerequisites
+For the normal Docker setup:
 
-The assessment stack runs through Linux containers. On Windows, install:
+- Git
+- Docker Desktop with Docker Compose
+- At least 8 GB RAM recommended
 
-1. **WSL 2**
+.NET 10 SDK and Node.js 24 are only required when running source tests outside
+Docker.
 
-   Confirm that hardware virtualization is enabled in BIOS/UEFI. Docker Desktop
-   currently requires at least WSL 2.1.5 and 8 GB of system RAM.
-
-   Open PowerShell as Administrator:
-
-   ```powershell
-   wsl --install
-   ```
-
-   Restart Windows when requested, then run:
-
-   ```powershell
-   wsl --update
-   wsl --status
-   ```
-
-   Official guide: <https://learn.microsoft.com/windows/wsl/install>
-
-2. **Docker Desktop**
-
-   Install with WinGet:
-
-   ```powershell
-   winget install --exact --id Docker.DockerDesktop
-   ```
-
-   Start Docker Desktop, allow it to use the WSL 2 backend, and wait until the
-   engine reports that it is running. Verify with:
-
-   ```powershell
-   docker version
-   docker compose version
-   ```
-
-   Official guide:
-   <https://docs.docker.com/desktop/setup/install/windows-install/>
-
-3. **.NET 10 SDK**
-
-   The containers build the API without a host SDK, but the SDK is needed for
-   local backend builds and tests:
-
-   ```powershell
-   winget install --exact --id Microsoft.DotNet.SDK.10
-   ```
-
-   Open a new terminal and verify:
-
-   ```powershell
-   dotnet --version
-   dotnet --list-sdks
-   ```
-
-   Official download: <https://dotnet.microsoft.com/download>
-
-4. **Git and Node.js 24** (needed for source control and local frontend checks)
-
-   ```powershell
-   winget install --exact --id Git.Git
-   winget install --exact --id OpenJS.NodeJS.24
-   ```
-
-   Open a new terminal and verify:
-
-   ```powershell
-   git --version
-   node --version
-   npm --version
-   ```
-
-FFmpeg and FFprobe run inside the Docker images. A host FFmpeg installation is
-optional because the verification scripts execute media probes in containers.
-
-## One-command startup
-
-No `.env` file is required for the safe development defaults:
+## How to Run the Project
 
 ```powershell
+# 1. Clone and open the repository
+git clone https://github.com/Taha-Seddik/vms-system-test.git
+Set-Location vms-system-test
+
+# 2. Build and start the complete stack
 docker compose up --build -d
+
+# 3. Check that all services are healthy
+docker compose ps
 ```
 
-To change ports or credentials, copy `.env.example` to `.env` first:
+The first startup can take several minutes while Docker downloads and builds
+the images.
+
+Open:
+
+- Application: http://localhost:3000
+- Swagger UI: http://localhost:8080/swagger
+- OpenAPI JSON: http://localhost:8080/openapi/v1.json
+- API health: http://localhost:8080/health
+
+No `.env` file is required. To override the development defaults:
 
 ```powershell
 Copy-Item .env.example .env
+docker compose up --build -d
 ```
 
-View status and logs:
+## Demo Accounts
 
-```powershell
-docker compose ps
-docker compose logs -f
-```
+| Role | Username | Password | Camera access |
+|---|---|---|---|
+| Administrator | `admin` | `Admin123!` | All cameras and administration |
+| Operator | `operator` | `Operator123!` | All operational cameras |
+| Viewer | `viewer` | `Viewer123!` | Entrance and Loading Bay only |
 
-Stop the stack without deleting database data:
+## Project Structure
 
-```powershell
-docker compose down
+```text
+backend/
+  Vms.Api/
+    Controllers/             # REST endpoints
+    Services/                # Authentication, cameras, recording, events
+    Models/                  # API requests and responses
+    Domain/                  # Database entities
+    Extensions/              # DI, authentication, persistence, OpenAPI
+    Middleware/              # Security and audit behavior
+    Data/                    # EF Core context, migrations, seed data
+    Utils/                   # Reusable helpers
+  Vms.Api.Tests/             # Backend integration tests
+frontend/                    # React/TypeScript application
+infra/
+  camera-generator/          # Four generated RTSP camera feeds
+  mediamtx/                  # RTSP-to-HLS media server
+scripts/                     # End-to-end verification scripts
+docs/                        # Detailed implementation documentation
+compose.yaml                 # Complete application stack
 ```
 
 ## Verification
 
-After the containers are healthy:
-
-```powershell
-.\scripts\verify-foundation.ps1
-```
-
-The script verifies:
-
-- API and frontend health endpoints;
-- all four HLS playlists;
-- an actual decodable video stream behind every playlist using FFprobe inside
-  the camera-generator container;
-- running and healthy Compose services.
-
-Verify Step 2 authentication and authorization:
-
-```powershell
-.\scripts\verify-auth.ps1
-```
-
-Verify Step 3 camera management and health:
-
-```powershell
-.\scripts\verify-camera-health.ps1
-```
-
-The Step 3 script checks persisted camera groups and cameras, assignment
-filtering, role boundaries, real FFprobe metadata, all four automatic
-heartbeats, camera and group CRUD, enable/disable, and a real
-offline-to-reconnected event transition. Temporary verification resources are
-cleaned up automatically.
-
-Verify Step 4 command center aggregation and real-time updates:
-
-```powershell
-.\scripts\verify-command-center.ps1
-```
-
-The Step 4 script checks role boundaries, the complete operational snapshot,
-actual recording-volume capacity, active-user and uptime metrics, alarm and
-incident classification, and a real SignalR notification caused by a real
-FFprobe camera test. Its temporary failure event is removed automatically.
-
-Verify Steps 5 and 6 live monitoring access and real recording media:
-
-```powershell
-.\scripts\verify-live-recording.ps1
-```
-
-The combined script checks Viewer assignments and recording denial, all four
-online wall cameras, manual recording and mode conflicts, automatic
-motion-event recording, multiple continuous segments, actual H.264 MP4 media
-through FFprobe, a real unavailable-source failure, command-center failure
-visibility, and camera-source recovery.
-
-Verify Step 7 playback, downloads, seeking, filters, and keyframes:
-
-```powershell
-.\scripts\verify-playback.ps1
-```
-
-The script reuses a completed recording longer than 30 seconds or creates one.
-It verifies playback role boundaries, HTTP range support, protected MP4 media,
-safe downloads, camera/type/status filters, invalid-date validation, and real
-decodable JPEG keyframes at 0 and 30 seconds.
-
-Verify Step 8 events, alarms, incidents, and real-time closing:
-
-```powershell
-.\scripts\verify-events.ps1
-```
-
-The script checks Viewer denial, invalid dates, all eight assessment event
-types and required fields, combined filters, details, alarm/incident
-classification, the close lifecycle, command-center consistency, a real
-SignalR update, and automatic cleanup of temporary records.
-
-Verify Step 9 user management, search, and audit logging:
-
-```powershell
-.\scripts\verify-users-search-audit.ps1
-```
-
-The script creates a temporary Viewer, verifies assignment-limited access,
-changes its assignment/password/role, proves session revocation, searches all
-four resource categories, checks role-sensitive results and filters, confirms
-durable Administrator/Operator audit records, and deletes the temporary user.
-
-Verify final delivery security, OpenAPI, protected HLS, and documentation:
+Run the final delivery verification:
 
 ```powershell
 .\scripts\verify-delivery.ps1
 ```
 
-The Step 10 verifier proves that anonymous and unassigned Viewer HLS requests
-are rejected while assigned Viewer and Operator requests work. It decodes
-authenticated H.264, checks Swagger/OpenAPI, internal-only media ports,
-Command Center live-wall sources, security headers, RTSP credential redaction,
-safe redacted updates, system completion metadata, and temporary-resource
-cleanup.
+Run the complete assessment verification suite:
 
-Local source checks:
+```powershell
+$checks = Get-ChildItem .\scripts\verify-*.ps1 | Sort-Object Name
+foreach ($check in $checks) {
+    & $check.FullName
+    if ($LASTEXITCODE -ne 0) { throw "$($check.Name) failed" }
+}
+```
+
+Run source tests:
 
 ```powershell
 dotnet test Vms.slnx
@@ -262,354 +135,18 @@ npm run build
 Pop-Location
 ```
 
-## Step 2 demo accounts
-
-These accounts are seeded only when the user table is empty:
-
-| Role | Username | Password | Camera access |
-|---|---|---|---|
-| Administrator | `admin` | `Admin123!` | All four cameras plus activity |
-| Operator | `operator` | `Operator123!` | All four cameras |
-| Viewer | `viewer` | `Viewer123!` | Assigned `camera-1` and `camera-2` only |
-
-The passwords above are local assessment credentials. ASP.NET Core Identity
-manages users, normalized usernames, salted password hashes, failed-access
-counts, lockout, security stamps, roles, and role membership in PostgreSQL.
-The VMS adds its own short-lived JWT and revocable session record because the
-approved assessment plan explicitly requires JWT plus active-user/logout
-tracking. JWT signing configuration can be overridden through the `JWT_ISSUER`,
-`JWT_AUDIENCE`, and `JWT_SIGNING_KEY` values in an untracked `.env` file.
-
-Verify authentication, roles, assignments, revocation, activity, and database
-storage against the running Docker stack:
+## Stop the Project
 
 ```powershell
-.\scripts\verify-auth.ps1
+docker compose down
 ```
 
-Authentication endpoints:
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `POST /api/auth/login` | Anonymous | Verify credentials and create a session/JWT |
-| `POST /api/auth/logout` | Authenticated | Revoke the current session |
-| `GET /api/auth/me` | Authenticated | Return current user and assignments |
-| `GET /api/auth/activity` | Administrator | Active sessions and login/logout events |
-| `GET /api/cameras/accessible` | Authenticated | Return the role-authorized camera list |
-
-## Step 3 camera management and health
-
-Camera configuration is stored in PostgreSQL. The API container includes
-FFprobe and checks enabled RTSP sources every 15 seconds. A successful probe
-updates resolution, FPS, online status, and last heartbeat. A failed probe
-updates offline status and its safe error message. Status transitions create
-Camera Offline and Camera Reconnected system events.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/cameras` | Authenticated | Assignment-aware camera list and health |
-| `GET /api/cameras/manage` | Administrator | Full camera configuration list |
-| `POST /api/cameras` | Administrator | Add a camera |
-| `PUT /api/cameras/{id}` | Administrator | Edit a camera |
-| `DELETE /api/cameras/{id}` | Administrator | Delete a camera |
-| `PATCH /api/cameras/{id}/enabled` | Administrator | Enable or disable a camera |
-| `POST /api/cameras/{id}/test-connection` | Administrator, Operator | Run a bounded FFprobe test |
-| `GET /api/camera-groups` | Authenticated | List groups |
-| `POST/PUT/DELETE /api/camera-groups` | Administrator | Manage groups |
-
-Administrators can use the Material UI management workspace at
-<http://localhost:3000/manage/cameras>. Operators can run connection tests from
-the normal camera screen. Viewers receive status only for their assigned
-cameras and cannot run probes or mutate configuration.
-
-## Step 4 command center dashboard
-
-Administrators and Operators land on
-<http://localhost:3000/command-center>. One aggregated API read supplies camera,
-stream, recording, active-user, uptime, storage, alarm, incident, failure, and
-operator-activity data. SignalR invalidates the snapshot after relevant
-authentication, camera-management, connection-test, or health-monitor changes;
-the browser then reloads authoritative data. A 30-second REST poll remains as a
-fallback.
-
-The authenticated application uses a fixed left administration sidebar on
-desktop and a solid mobile header with an off-canvas menu. Operational list
-cards show at most five rows; their View details/View all actions open a
-right-side drawer with the complete result returned by the command-center API.
-Camera and camera-group management remain together in one Administrator
-workspace. The application uses a simple light palette with white surfaces,
-soft-gray page backgrounds, and one blue accent. Sidebar contents are
-constrained to the Drawer width, and long navigation text truncates rather than
-causing horizontal scrolling.
-
-The dashboard uses these measurable definitions:
-
-- active users are distinct, enabled, unrevoked sessions seen in the last five
-  minutes;
-- active live streams are enabled cameras currently confirmed Online by
-  FFprobe;
-- active alarms are open Warning or Critical events;
-- recent incidents are operational events rather than login/logout activity;
-- storage health comes from the mounted recording volume, with warning and
-  critical thresholds configurable in `.env`;
-- uptime begins at API process start.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/command-center` | Administrator, Operator | Complete dashboard snapshot |
-| `/hubs/command-center` | Administrator, Operator | SignalR snapshot-invalidation notifications |
-
-## Step 5 multi-camera live monitoring
-
-The live-monitoring workspace at <http://localhost:3000/cameras> supports
-1/4/9/16 layouts. HLS.js attaches each MediaMTX playlist to an HTML video
-element, with native HLS fallback where available. Every populated tile shows
-camera identity, connection and recording state, fullscreen, 1x/1.5x/2x
-digital zoom, and a current-frame PNG snapshot. Empty 9/16 cells are shown
-explicitly because the assessment uses four demo cameras.
-
-The camera-list API remains the authorization boundary: Administrators and
-Operators receive all cameras, while the seeded Viewer receives only camera-1
-and camera-2. Recording controls are absent for Viewers and independently
-protected by the API.
-
-## Step 6 real recording workflows
-
-Administrators and Operators can start manual or continuous recording, simulate
-motion, and stop a recording from the live wall. FFmpeg reads the actual RTSP
-source and writes GUID-named MP4 files to the persistent `recording-data`
-volume. FFprobe must confirm a video stream, positive duration, and file size
-before metadata is marked Completed.
-
-Continuous recording produces configurable ten-second playable segments.
-Simulated motion persists a real Motion Detected event and triggers an
-automatic configurable eight-second event recording. A camera can have only
-one active mode; conflicts return `409`. Failures are persisted as critical
-recording-failure events and appear on the command center.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/recordings` | Administrator, Operator | Recent recording metadata, optionally filtered by camera |
-| `POST /api/cameras/{id}/recordings/manual/start` | Administrator, Operator | Start manual FFmpeg capture |
-| `POST /api/cameras/{id}/recordings/continuous/start` | Administrator, Operator | Start segmented continuous capture |
-| `POST /api/cameras/{id}/motion/simulate` | Administrator, Operator | Persist motion event and start real event capture |
-| `POST /api/cameras/{id}/recordings/stop` | Administrator, Operator | Gracefully finalize the active capture |
-
-## Step 7 playback and keyframes
-
-Administrators and Operators can open
-<http://localhost:3000/playback> to browse completed recordings. Filters cover
-camera, manual/continuous/event mode, and start-date range. The selected MP4 is
-loaded through an authenticated API request; JWTs are not placed in media URLs.
-
-Playback includes the native video controls plus an explicit timeline,
-play/pause, ten-second backward/forward seeking, 0.5x/1x/1.5x/2x/4x speed
-control, current-frame PNG snapshot, and original MP4 download.
-
-FFmpeg generates JPEG previews at zero seconds and every configurable 30
-seconds afterward. Existing completed recordings are backfilled automatically.
-Selecting a thumbnail seeks the player directly to its stored timestamp.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/recordings` | Administrator, Operator | Filter by camera, date, mode, state, and result limit |
-| `GET /api/recordings/{id}` | Administrator, Operator | Recording detail and ordered keyframe timeline |
-| `GET /api/recordings/{id}/media` | Administrator, Operator | Protected range-enabled MP4 response |
-| `GET /api/recordings/{id}/download` | Administrator, Operator | Protected MP4 attachment |
-| `GET /api/recordings/{id}/keyframes/{keyframeId}` | Administrator, Operator | Protected JPEG preview |
-
-## Step 8 events, alarms, and incidents
-
-Administrators and Operators can open <http://localhost:3000/events> to browse
-the live event panel. Filters cover date, camera, event type, severity, and
-Open/Closed status. Selecting an event shows its complete assessment fields;
-an Open event can be closed from the details drawer.
-
-An active alarm is exactly an Open Warning or Critical event. An incident is
-any operational event other than User Login or User Logout, so incidents reuse
-the event lifecycle instead of duplicating records. SignalR invalidations
-refresh both Events and Command Center screens, with a 30-second polling
-fallback.
-
-The required Storage Full event is generated automatically when the real
-recording-volume status reaches Critical. The 30-second monitor creates only
-one open event and closes it when capacity recovers.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/events` | Administrator, Operator | Filter events and return event/alarm/incident counts |
-| `GET /api/events/{id}` | Administrator, Operator | Read one event with complete fields and classifications |
-| `POST /api/events/{id}/close` | Administrator, Operator | Persist Closed status and publish a SignalR update |
-
-## Step 9 users, search, and audit logs
-
-Administrators can open <http://localhost:3000/manage/users> to create, edit,
-disable, reset passwords, change roles, delete users, and assign cameras to
-Viewers. A Viewer must always have at least one valid assignment. Password,
-role, and disabled-state changes revoke active sessions immediately.
-
-Administrators and Operators can open <http://localhost:3000/search> to search
-cameras, recordings, and events. Administrators also receive user results.
-Shared filters cover date, camera, camera group, status, and event type.
-
-Administrators can open <http://localhost:3000/activity> to filter durable
-audit history by actor, resource, action, and date. Login/logout records and
-successful authenticated write operations include actor, action, resource,
-timestamp, and description. Recent audited Operator actions also appear in the
-Command Center.
-
-| Endpoint | Access | Purpose |
-|---|---|---|
-| `GET /api/users` | Administrator | Search/filter managed Identity accounts |
-| `POST /api/users` | Administrator | Create an account, role, and Viewer assignments |
-| `PUT /api/users/{id}` | Administrator | Update role, state, password, and assignments |
-| `DELETE /api/users/{id}` | Administrator | Delete a non-current account |
-| `GET /api/search` | Administrator, Operator | Search cameras, recordings, events, and permitted users |
-| `GET /api/audit-logs` | Administrator | Filter durable audit records |
-
-## Step 10 final integration and delivery
-
-MediaMTX delegates HLS read authorization to the API. HLS.js attaches the
-signed JWT to the master playlist, variant playlist, and media-segment
-requests. The API validates the token, persisted session, enabled account,
-role, camera state, and Viewer assignment before MediaMTX releases media.
-Anonymous and unassigned-camera reads return `401`.
-
-RTSP ingest/read, the MediaMTX control API, and metrics remain inside the
-Docker network. Published development ports bind to loopback. Camera-management
-responses redact RTSP usernames and passwords; submitting the unchanged
-redacted value preserves the stored source during ordinary edits.
-
-The Command Center now contains a real four-camera authenticated HLS wall in
-addition to its operational metrics and event panels.
-
-REST documentation:
-
-| URL | Purpose |
-|---|---|
-| <http://localhost:8080/swagger> | Interactive Swagger UI |
-| <http://localhost:8080/openapi/v1.json> | OpenAPI v1 JSON document |
-
-In Swagger, call `POST /api/auth/login`, copy `accessToken`, select
-**Authorize**, and enter the token. Swagger supplies the `Bearer` prefix.
-
-## Repository layout
-
-```text
-backend/
-  Vms.Api/                 Lean layered ASP.NET Core API
-    Controllers/           HTTP routes, status codes, authorization attributes
-    Services/              Identity workflows, sessions, JWTs, camera access
-    Models/                API request/response and configuration models
-    Domain/                Identity user extension and VMS domain entities
-    Extensions/            DI, authentication, policies, claims, persistence
-    Middleware/            Successful-write audit capture
-    Utils/                 Small reusable stateless helpers
-    Data/                  EF Core context, migrations, and seed data
-  Vms.Api.Tests/           API integration tests
-frontend/                  React, TypeScript, Vite, Material UI
-infra/
-  camera-generator/        FFmpeg-generated RTSP source image
-  mediamtx/                MediaMTX image and configuration
-scripts/
-  verify-foundation.ps1    End-to-end Step 1 verification
-  verify-auth.ps1          End-to-end Step 2 authorization verification
-  verify-camera-health.ps1 End-to-end Step 3 camera/health verification
-  verify-command-center.ps1 End-to-end Step 4 dashboard/SignalR verification
-  verify-live-recording.ps1 End-to-end Steps 5/6 access and media verification
-  verify-playback.ps1      End-to-end Step 7 playback/keyframe verification
-  verify-events.ps1        End-to-end Step 8 event/alarm verification
-  verify-users-search-audit.ps1 End-to-end Step 9 verification
-  verify-delivery.ps1      Final OpenAPI/media/security/delivery verification
-docs/
-  index.html               HTML implementation documentation home
-  assets/                  Shared styling and final architecture diagram
-  steps/                   One implementation guide per approved step
-compose.yaml               Complete local stack
-PROGRESS.md                Gated assessment progress
-plan.md                    Approved implementation plan
-```
-
-## Implementation documentation
-
-Open [`docs/index.html`](docs/index.html) in a browser to read the assessment
-implementation guides. Every completed step receives a formatted HTML guide
-covering its requirements, architecture, dependencies, important code,
-verification evidence, limitations, and next-step context.
-
-The Step 1 guide is:
-[`docs/steps/step-01-repository-media-foundation.html`](docs/steps/step-01-repository-media-foundation.html).
-
-The Step 2 guide is:
-[`docs/steps/step-02-authentication-roles-assignments.html`](docs/steps/step-02-authentication-roles-assignments.html).
-
-The Step 3 guide is:
-[`docs/steps/step-03-camera-management-health.html`](docs/steps/step-03-camera-management-health.html).
-
-The Step 4 guide is:
-[`docs/steps/step-04-command-center-dashboard.html`](docs/steps/step-04-command-center-dashboard.html).
-
-The Step 5 guide is:
-[`docs/steps/step-05-multi-camera-live-monitoring.html`](docs/steps/step-05-multi-camera-live-monitoring.html).
-
-The Step 6 guide is:
-[`docs/steps/step-06-real-recording-workflows.html`](docs/steps/step-06-real-recording-workflows.html).
-
-The Step 7 guide is:
-[`docs/steps/step-07-playback-keyframes.html`](docs/steps/step-07-playback-keyframes.html).
-
-The Step 8 guide is:
-[`docs/steps/step-08-events-alarms-incidents.html`](docs/steps/step-08-events-alarms-incidents.html).
-
-The Step 9 guide is:
-[`docs/steps/step-09-users-search-audit.html`](docs/steps/step-09-users-search-audit.html).
-
-The Step 10 guide and complete requirements checklist are:
-[`docs/steps/step-10-final-integration-delivery.html`](docs/steps/step-10-final-integration-delivery.html).
-
-## Development configuration
-
-Development defaults are intentionally non-secret. Do not reuse them outside a
-local assessment environment. Real secrets belong in an untracked `.env` file
-or a secret manager.
-
-The generated feeds use 640×360 H.264 video at 10 FPS and 500 Kbit/s so four
-feeds can run comfortably on a typical laptop. Each feed has a unique label and
-color treatment.
-
-## Reviewer walkthrough
-
-After startup, a useful ten-minute review is:
-
-1. Sign in as Administrator and inspect the live Command Center wall.
-2. Open Swagger, log in through the API, authorize, and inspect protected
-   routes.
-3. Start and stop a manual recording from Live Monitoring.
-4. Open Playback, seek, change speed, select a keyframe, take a snapshot, and
-   download the MP4.
-5. Simulate motion and confirm the event plus real event recording.
-6. Sign in as Viewer in a private window and confirm only camera 1 and camera 2
-   are listed and playable.
-7. Run `.\scripts\verify-delivery.ps1` for repeatable final proof.
-
-## Assumptions and limitations
-
-- Four deterministic FFmpeg RTSP feeds replace physical cameras.
-- The 9 and 16 layouts intentionally contain empty cells.
-- Motion is simulated, but it creates a real event and real recording.
-- Development uses loopback HTTP and documented demo credentials. A real
-  deployment requires TLS, a secret manager, credential rotation, backups,
-  monitoring, and a production database policy.
-- Protected live playback requires HLS.js and Media Source Extensions.
-- Events represent assessment-level incidents; there is no duplicate incident
-  subsystem.
-- Search is bounded PostgreSQL querying rather than a separate search engine.
-- ONVIF, PTZ, AI detection, GPU acceleration, Kubernetes, high availability,
-  and multi-site federation are intentionally outside the assessment scope.
-
-## Assessment delivery status
-
-All minimum deliverables in the supplied PDF are implemented and backed by
-automated or live verification. The complete requirement mapping and final
-technical explanation are in the
-[Step 10 delivery guide](docs/steps/step-10-final-integration-delivery.html).
+Database records and recorded media remain in Docker volumes.
+
+## Assessment Notes
+
+- Motion detection is simulated, but it creates a real event and real MP4 recording.
+- Live HLS streams require an authenticated, active session and enforce Viewer assignments.
+- Events represent assessment-level incidents.
+- Detailed architecture, implementation notes, and requirement evidence are available in
+  [`docs/index.html`](docs/index.html).
