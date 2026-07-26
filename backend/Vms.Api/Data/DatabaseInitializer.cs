@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Vms.Api.Data.Entities;
+using Vms.Api.Domain.Entities;
 using Vms.Api.Domain;
 
 namespace Vms.Api.Data;
@@ -98,4 +98,3 @@ public static class DatabaseInitializer
         return user;
     }
 }
-

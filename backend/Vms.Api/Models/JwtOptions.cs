@@ -1,4 +1,4 @@
-namespace Vms.Api.Auth;
+namespace Vms.Api.Models;
 
 public sealed class JwtOptions
 {
@@ -12,4 +12,3 @@ public sealed class JwtOptions
 
     public int AccessTokenMinutes { get; init; } = 60;
 }
-

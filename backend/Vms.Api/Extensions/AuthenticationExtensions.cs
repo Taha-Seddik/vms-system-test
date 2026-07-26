@@ -3,15 +3,15 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Vms.Api.Data;
-using Vms.Api.Data.Entities;
+using Vms.Api.Domain.Entities;
+using Vms.Api.Models;
+using Vms.Api.Services;
 
-namespace Vms.Api.Auth;
+namespace Vms.Api.Extensions;
 
-public static class AuthServiceCollectionExtensions
+public static class AuthenticationExtensions
 {
     public static IServiceCollection AddVmsAuthentication(
         this IServiceCollection services,
@@ -27,11 +27,9 @@ public static class AuthServiceCollectionExtensions
         services
             .AddOptions<JwtOptions>()
             .Bind(configuration.GetRequiredSection(JwtOptions.SectionName))
-            .ValidateDataAnnotations()
             .ValidateOnStart();
 
         services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
-        services.AddSingleton<JwtTokenService>();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -82,29 +80,16 @@ public static class AuthServiceCollectionExtensions
             return;
         }
 
-        var database = context.HttpContext.RequestServices
-            .GetRequiredService<VmsDbContext>();
-        var session = await database.UserSessions
-            .Include(item => item.User)
-            .SingleOrDefaultAsync(
-                item => item.Id == sessionId && item.UserId == userId,
-                context.HttpContext.RequestAborted);
-        var now = DateTimeOffset.UtcNow;
+        var validator = context.HttpContext.RequestServices
+            .GetRequiredService<SessionValidationService>();
+        var isValid = await validator.ValidateAsync(
+            userId,
+            sessionId,
+            context.HttpContext.RequestAborted);
 
-        if (session is null ||
-            session.RevokedAt is not null ||
-            session.ExpiresAt <= now ||
-            !session.User.IsEnabled)
+        if (!isValid)
         {
             context.Fail("Session is no longer active.");
-            return;
-        }
-
-        if (session.LastActivityAt <= now.AddSeconds(-30))
-        {
-            session.LastActivityAt = now;
-            session.User.LastActivityAt = now;
-            await database.SaveChangesAsync(context.HttpContext.RequestAborted);
         }
     }
 
@@ -118,7 +103,7 @@ public static class AuthServiceCollectionExtensions
             throw new OptionsValidationException(
                 JwtOptions.SectionName,
                 typeof(JwtOptions),
-                ["JWT issuer, audience, a 32+ character signing key, and a 5–1440 minute lifetime are required."]);
+                ["JWT issuer, audience, a 32+ character signing key, and a 5-1440 minute lifetime are required."]);
         }
     }
 }

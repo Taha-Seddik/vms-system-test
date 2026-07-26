@@ -1,6 +1,6 @@
 using Vms.Api.Domain;
 
-namespace Vms.Api.Data.Entities;
+namespace Vms.Api.Domain.Entities;
 
 public sealed class SystemEvent
 {
@@ -20,4 +20,3 @@ public sealed class SystemEvent
 
     public EventStatus Status { get; set; }
 }
-

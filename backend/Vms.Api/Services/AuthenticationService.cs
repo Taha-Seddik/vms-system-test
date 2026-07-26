@@ -1,44 +1,27 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Vms.Api.Authorization;
 using Vms.Api.Data;
-using Vms.Api.Data.Entities;
 using Vms.Api.Domain;
+using Vms.Api.Domain.Entities;
+using Vms.Api.Models;
 
-namespace Vms.Api.Auth;
+namespace Vms.Api.Services;
 
-public static class AuthEndpoints
+public sealed class AuthenticationService(
+    VmsDbContext database,
+    IPasswordHasher<AppUser> passwordHasher,
+    JwtTokenService tokenService,
+    IOptions<JwtOptions> jwtOptions)
 {
-    public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
-    {
-        var group = endpoints.MapGroup("/api/auth").WithTags("Authentication");
-
-        group.MapPost("/login", LoginAsync).AllowAnonymous();
-        group.MapPost("/logout", LogoutAsync).RequireAuthorization();
-        group.MapGet("/me", GetCurrentUserAsync).RequireAuthorization();
-        group.MapGet("/activity", GetActivityAsync)
-            .RequireAuthorization(AppPolicies.AdministratorOnly);
-
-        return endpoints;
-    }
-
-    private static async Task<IResult> LoginAsync(
+    public async Task<LoginResult> LoginAsync(
         LoginRequest request,
-        VmsDbContext database,
-        IPasswordHasher<AppUser> hasher,
-        JwtTokenService tokens,
-        IOptions<JwtOptions> jwtOptions,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Username) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["credentials"] = ["Username and password are required."]
-            });
+            return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
         var normalizedUsername = request.Username.Trim().ToUpperInvariant();
@@ -50,30 +33,27 @@ public static class AuthEndpoints
 
         if (user is null || !user.IsEnabled)
         {
-            return Results.Unauthorized();
+            return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
-        var verification = hasher.VerifyHashedPassword(
+        var verification = passwordHasher.VerifyHashedPassword(
             user,
             user.PasswordHash,
             request.Password);
 
         if (verification == PasswordVerificationResult.Failed)
         {
-            return Results.Unauthorized();
+            return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
         if (user.Role == AppRole.Viewer && user.CameraAssignments.Count == 0)
         {
-            return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Viewer has no camera assignments.",
-                detail: "An administrator must assign at least one camera before this Viewer can sign in.");
+            return new LoginResult(null, LoginFailure.ViewerHasNoAssignments);
         }
 
         if (verification == PasswordVerificationResult.SuccessRehashNeeded)
         {
-            user.PasswordHash = hasher.HashPassword(user, request.Password);
+            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -89,31 +69,26 @@ public static class AuthEndpoints
         user.LastLoginAt = now;
         user.LastActivityAt = now;
         database.UserSessions.Add(session);
-        database.SystemEvents.Add(new SystemEvent
-        {
-            Id = Guid.NewGuid(),
-            Type = SystemEventType.UserLogin,
-            Timestamp = now,
-            UserId = user.Id,
-            Severity = EventSeverity.Information,
-            Description = $"{user.DisplayName} signed in.",
-            Status = EventStatus.Closed
-        });
+        database.SystemEvents.Add(CreateActivityEvent(
+            user,
+            SystemEventType.UserLogin,
+            $"{user.DisplayName} signed in.",
+            now));
         await database.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(new LoginResponse(
-            tokens.CreateToken(user, session),
+        var response = new LoginResponse(
+            tokenService.CreateToken(user, session),
             session.ExpiresAt,
-            ToUserResponse(user)));
+            ToUserResponse(user));
+
+        return new LoginResult(response, LoginFailure.None);
     }
 
-    private static async Task<IResult> LogoutAsync(
-        ClaimsPrincipal principal,
-        VmsDbContext database,
+    public async Task LogoutAsync(
+        Guid userId,
+        Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var sessionId = principal.GetRequiredSessionId();
-        var userId = principal.GetRequiredUserId();
         var session = await database.UserSessions
             .Include(item => item.User)
             .SingleOrDefaultAsync(
@@ -122,44 +97,34 @@ public static class AuthEndpoints
 
         if (session is null || session.RevokedAt is not null)
         {
-            return Results.NoContent();
+            return;
         }
 
         var now = DateTimeOffset.UtcNow;
         session.RevokedAt = now;
         session.RevokedReason = "User logout";
         session.User.LastActivityAt = now;
-        database.SystemEvents.Add(new SystemEvent
-        {
-            Id = Guid.NewGuid(),
-            Type = SystemEventType.UserLogout,
-            Timestamp = now,
-            UserId = userId,
-            Severity = EventSeverity.Information,
-            Description = $"{session.User.DisplayName} signed out.",
-            Status = EventStatus.Closed
-        });
+        database.SystemEvents.Add(CreateActivityEvent(
+            session.User,
+            SystemEventType.UserLogout,
+            $"{session.User.DisplayName} signed out.",
+            now));
         await database.SaveChangesAsync(cancellationToken);
-
-        return Results.NoContent();
     }
 
-    private static async Task<IResult> GetCurrentUserAsync(
-        ClaimsPrincipal principal,
-        VmsDbContext database,
+    public async Task<AuthenticatedUserResponse> GetCurrentUserAsync(
+        Guid userId,
         CancellationToken cancellationToken)
     {
-        var userId = principal.GetRequiredUserId();
         var user = await database.Users
             .AsNoTracking()
             .Include(item => item.CameraAssignments)
             .SingleAsync(item => item.Id == userId, cancellationToken);
 
-        return Results.Ok(ToUserResponse(user));
+        return ToUserResponse(user);
     }
 
-    private static async Task<IResult> GetActivityAsync(
-        VmsDbContext database,
+    public async Task<AuthActivityResponse> GetActivityAsync(
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
@@ -182,8 +147,24 @@ public static class AuthEndpoints
                 item.Description))
             .ToListAsync(cancellationToken);
 
-        return Results.Ok(new AuthActivityResponse(activeSessions, events));
+        return new AuthActivityResponse(activeSessions, events);
     }
+
+    private static SystemEvent CreateActivityEvent(
+        AppUser user,
+        SystemEventType type,
+        string description,
+        DateTimeOffset timestamp) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Type = type,
+            Timestamp = timestamp,
+            UserId = user.Id,
+            Severity = EventSeverity.Information,
+            Description = description,
+            Status = EventStatus.Closed
+        };
 
     private static AuthenticatedUserResponse ToUserResponse(AppUser user) =>
         new(
@@ -198,4 +179,3 @@ public static class AuthEndpoints
             user.LastLoginAt,
             user.LastActivityAt);
 }
-

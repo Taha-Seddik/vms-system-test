@@ -1,6 +1,6 @@
 using Vms.Api.Domain;
 
-namespace Vms.Api.Auth;
+namespace Vms.Api.Models;
 
 public sealed record LoginRequest(string Username, string Password);
 
@@ -28,3 +28,11 @@ public sealed record AuthActivityResponse(
     int ActiveSessions,
     IReadOnlyList<ActivityEventResponse> RecentEvents);
 
+public enum LoginFailure
+{
+    None,
+    InvalidCredentials,
+    ViewerHasNoAssignments
+}
+
+public sealed record LoginResult(LoginResponse? Response, LoginFailure Failure);

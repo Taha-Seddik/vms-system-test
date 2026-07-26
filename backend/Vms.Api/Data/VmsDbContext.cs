@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Vms.Api.Data.Entities;
+using Vms.Api.Domain.Entities;
 
 namespace Vms.Api.Data;
 
@@ -54,4 +54,3 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options) : DbCon
         systemEvent.HasIndex(item => new { item.Type, item.Timestamp });
     }
 }
-

@@ -1,6 +1,6 @@
 using Vms.Api.Domain;
 
-namespace Vms.Api.Authorization;
+namespace Vms.Api.Extensions;
 
 public static class AppPolicies
 {
@@ -8,7 +8,8 @@ public static class AppPolicies
 
     public const string OperatorOrAdministrator = nameof(OperatorOrAdministrator);
 
-    public static IServiceCollection AddVmsAuthorization(this IServiceCollection services)
+    public static IServiceCollection AddVmsAuthorization(
+        this IServiceCollection services)
     {
         services.AddAuthorizationBuilder()
             .AddPolicy(AdministratorOnly, policy =>
@@ -21,4 +22,3 @@ public static class AppPolicies
         return services;
     }
 }
-

@@ -194,7 +194,13 @@ Authentication endpoints:
 
 ```text
 backend/
-  Vms.Api/                 Lean ASP.NET Core API
+  Vms.Api/                 Lean layered ASP.NET Core API
+    Controllers/           HTTP routes, status codes, authorization attributes
+    Services/              Authentication, sessions, tokens, camera access
+    Models/                API request/response and configuration models
+    Domain/                Business enums and persistent domain entities
+    Extensions/            DI, authentication, policies, claims, persistence
+    Data/                  EF Core context, migrations, and seed data
   Vms.Api.Tests/           API integration tests
 frontend/                  React, TypeScript, Vite, Material UI
 infra/
@@ -202,6 +208,7 @@ infra/
   mediamtx/                MediaMTX image and configuration
 scripts/
   verify-foundation.ps1    End-to-end Step 1 verification
+  verify-auth.ps1          End-to-end Step 2 authorization verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling

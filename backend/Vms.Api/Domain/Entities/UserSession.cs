@@ -1,4 +1,4 @@
-namespace Vms.Api.Data.Entities;
+namespace Vms.Api.Domain.Entities;
 
 public sealed class UserSession
 {
@@ -18,4 +18,3 @@ public sealed class UserSession
 
     public AppUser User { get; set; } = null!;
 }
-

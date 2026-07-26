@@ -3,9 +3,10 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Vms.Api.Data.Entities;
+using Vms.Api.Domain.Entities;
+using Vms.Api.Models;
 
-namespace Vms.Api.Auth;
+namespace Vms.Api.Services;
 
 public sealed class JwtTokenService(IOptions<JwtOptions> options)
 {
@@ -37,4 +38,3 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options)
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-

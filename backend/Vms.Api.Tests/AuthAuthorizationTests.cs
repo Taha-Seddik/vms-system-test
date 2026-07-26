@@ -3,10 +3,10 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Vms.Api.Auth;
 using Vms.Api.Data;
-using Vms.Api.Data.Entities;
 using Vms.Api.Domain;
+using Vms.Api.Domain.Entities;
+using Vms.Api.Models;
 using Xunit;
 
 namespace Vms.Api.Tests;
@@ -157,6 +157,18 @@ public sealed class AuthAuthorizationTests : IClassFixture<VmsApiFactory>
             new LoginRequest("admin", "not-the-password"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Blank_credentials_are_rejected_as_invalid_input()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest(" ", ""));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     private static async Task<LoginResponse> LoginAsync(

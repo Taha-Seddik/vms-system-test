@@ -1,6 +1,6 @@
 using Vms.Api.Domain;
 
-namespace Vms.Api.Data.Entities;
+namespace Vms.Api.Domain.Entities;
 
 public sealed class AppUser
 {
@@ -28,4 +28,3 @@ public sealed class AppUser
 
     public ICollection<UserSession> Sessions { get; set; } = [];
 }
-

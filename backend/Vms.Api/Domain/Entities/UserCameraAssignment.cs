@@ -1,4 +1,4 @@
-namespace Vms.Api.Data.Entities;
+namespace Vms.Api.Domain.Entities;
 
 public sealed class UserCameraAssignment
 {
@@ -10,4 +10,3 @@ public sealed class UserCameraAssignment
 
     public AppUser User { get; set; } = null!;
 }
-

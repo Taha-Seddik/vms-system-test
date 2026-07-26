@@ -155,6 +155,22 @@
 
         <section class="section" id="backend">
           <h2>4. Backend and database design</h2>
+          <p class="section-intro">
+            The API uses explicit, discoverable layers. Controllers translate
+            HTTP requests and responses, services contain workflows and
+            business decisions, models define transport/configuration shapes,
+            domain holds entities and enums, extensions compose framework
+            registration, and data owns EF Core persistence.
+          </p>
+          <pre class="file-tree"><code>Vms.Api/
+├── Controllers/   Auth, cameras, access-policy, and system HTTP APIs
+├── Services/      Authentication, JWT, session, and camera-access logic
+├── Models/        Requests, responses, camera DTOs, and JWT options
+├── Domain/
+│   └── Entities/  Users, sessions, assignments, and system events
+├── Extensions/    DI, JWT setup, policies, claims, and persistence setup
+├── Data/          DbContext, migrations, initialization, and demo IDs
+└── Program.cs     Middleware pipeline and controller mapping only</code></pre>
           <div class="grid two">
             <article class="card">
               <h3>Users</h3>
@@ -372,7 +388,7 @@
           <div class="code-block">
             <div class="code-header">
               <strong>Revocable JWT validation</strong>
-              <span>Auth/AuthServiceCollectionExtensions.cs</span>
+              <span>Extensions/AuthenticationExtensions.cs</span>
             </div>
             <pre><code>options.TokenValidationParameters = new TokenValidationParameters
 {
@@ -396,11 +412,11 @@ options.Events = new JwtBearerEvents
           <div class="code-block space-top">
             <div class="code-header">
               <strong>Viewer assignment filtering</strong>
-              <span>Cameras/AccessibleCameraEndpoints.cs</span>
+              <span>Services/CameraAccessService.cs</span>
             </div>
-            <pre><code>if (!principal.IsInRole(nameof(AppRole.Viewer)))
+            <pre><code>if (role != AppRole.Viewer)
 {
-    return Results.Ok(DemoCameraCatalog.All);
+    return DemoCameras;
 }
 
 var assignedIds = await database.UserCameraAssignments
@@ -408,8 +424,10 @@ var assignedIds = await database.UserCameraAssignments
     .Select(item =&gt; item.CameraId)
     .ToListAsync(cancellationToken);
 
-var accessible = DemoCameraCatalog.All
-    .Where(camera =&gt; assignedIds.Contains(camera.Id))
+var assignedSet = assignedIds.ToHashSet(StringComparer.Ordinal);
+
+return DemoCameras
+    .Where(camera =&gt; assignedSet.Contains(camera.Id))
     .ToArray();</code></pre>
           </div>
 
@@ -453,11 +471,11 @@ Pop-Location</code></pre>
           <div class="grid two">
             <article class="card">
               <h3>Backend integration tests</h3>
-              <p><strong>8 passed, 0 failed.</strong></p>
+              <p><strong>9 passed, 0 failed.</strong></p>
               <p>
-                Covers anonymous rejection, invalid password, all three role
-                boundaries, Viewer filtering, zero-assignment denial, logout
-                revocation, and activity events.
+                Covers anonymous rejection, blank/invalid credentials, all
+                three role boundaries, Viewer filtering, zero-assignment
+                denial, logout revocation, and activity events.
               </p>
             </article>
             <article class="card">

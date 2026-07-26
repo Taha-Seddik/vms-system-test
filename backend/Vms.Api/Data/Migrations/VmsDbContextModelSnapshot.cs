@@ -22,7 +22,7 @@ namespace Vms.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.AppUser", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.AppUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -73,7 +73,7 @@ namespace Vms.Api.Data.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.SystemEvent", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.SystemEvent", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -118,7 +118,7 @@ namespace Vms.Api.Data.Migrations
                     b.ToTable("SystemEvents");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.UserCameraAssignment", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.UserCameraAssignment", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
@@ -135,7 +135,7 @@ namespace Vms.Api.Data.Migrations
                     b.ToTable("UserCameraAssignments");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.UserSession", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -167,9 +167,9 @@ namespace Vms.Api.Data.Migrations
                     b.ToTable("UserSessions");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.UserCameraAssignment", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.UserCameraAssignment", b =>
                 {
-                    b.HasOne("Vms.Api.Data.Entities.AppUser", "User")
+                    b.HasOne("Vms.Api.Domain.Entities.AppUser", "User")
                         .WithMany("CameraAssignments")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -178,9 +178,9 @@ namespace Vms.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.UserSession", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.UserSession", b =>
                 {
-                    b.HasOne("Vms.Api.Data.Entities.AppUser", "User")
+                    b.HasOne("Vms.Api.Domain.Entities.AppUser", "User")
                         .WithMany("Sessions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -189,7 +189,7 @@ namespace Vms.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Vms.Api.Data.Entities.AppUser", b =>
+            modelBuilder.Entity("Vms.Api.Domain.Entities.AppUser", b =>
                 {
                     b.Navigation("CameraAssignments");
 

@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Vms.Api.Data;
 
-namespace Vms.Api.Data;
+namespace Vms.Api.Extensions;
 
-public static class DataServiceCollectionExtensions
+public static class PersistenceExtensions
 {
-    public static IServiceCollection AddVmsData(
+    public static IServiceCollection AddVmsPersistence(
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -18,4 +19,3 @@ public static class DataServiceCollectionExtensions
         return services;
     }
 }
-
