@@ -106,6 +106,9 @@ services:
       ConnectionStrings__VmsDatabase: >-
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-vms};
         Username=${POSTGRES_USER:-vms};Password=${POSTGRES_PASSWORD:-vms_dev_password}
+      Jwt__Issuer: ${JWT_ISSUER:-vms-api}
+      Jwt__Audience: ${JWT_AUDIENCE:-vms-web}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-development-only-signing-key-change-before-production-2026}
       Cors__AllowedOrigins__0: http://localhost:${FRONTEND_PORT:-3000}
     ports:
       - "${API_PORT:-8080}:8080"
@@ -145,4 +148,3 @@ volumes:
 networks:
   vms:
     driver: bridge
-

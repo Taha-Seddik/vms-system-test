@@ -15,6 +15,9 @@ import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import type { AccessibleCamera } from '../types/auth'
 
+const hlsBaseUrl =
+  import.meta.env.VITE_HLS_BASE_URL ?? 'http://localhost:8888'
+
 export function CamerasPage() {
   const { accessToken, user } = useAuth()
   const [cameras, setCameras] = useState<AccessibleCamera[]>([])
@@ -94,12 +97,12 @@ export function CamerasPage() {
                     <span>HLS feed authorized</span>
                   </Box>
                   <Link
-                    href={camera.hlsUrl}
+                    href={`${hlsBaseUrl}${camera.hlsUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     sx={{ wordBreak: 'break-all' }}
                   >
-                    {camera.hlsUrl}
+                    {`${hlsBaseUrl}${camera.hlsUrl}`}
                   </Link>
                 </CardContent>
               </Card>
