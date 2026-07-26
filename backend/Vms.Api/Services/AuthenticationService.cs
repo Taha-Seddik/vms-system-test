@@ -13,6 +13,7 @@ public sealed class AuthenticationService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     JwtTokenService tokenService,
+    DashboardUpdatePublisher dashboardUpdates,
     IOptions<JwtOptions> jwtOptions)
 {
     public async Task<LoginResult> LoginAsync(
@@ -69,6 +70,7 @@ public sealed class AuthenticationService(
             $"{user.DisplayName} signed in.",
             now));
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync("user-login", cancellationToken);
 
         var response = new LoginResponse(
             tokenService.CreateToken(user, role, session),
@@ -104,6 +106,7 @@ public sealed class AuthenticationService(
             $"{session.User.DisplayName} signed out.",
             now));
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync("user-logout", cancellationToken);
     }
 
     public async Task<AuthenticatedUserResponse> GetCurrentUserAsync(

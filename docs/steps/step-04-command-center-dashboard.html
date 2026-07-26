@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step 4 implementation guide: command-center metrics, camera and storage health, alarms, incidents, operator activity, SignalR, and polling fallback."
+    >
+    <title>Step 4 - Command center dashboard</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 04 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#definitions">Metric definitions</a></li>
+          <li><a href="#architecture">Dashboard architecture</a></li>
+          <li><a href="#backend">Backend layers</a></li>
+          <li><a href="#frontend">Command-center UI</a></li>
+          <li><a href="#dependencies">Dependencies</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 04
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Central command-center dashboard</h1>
+          <p class="lede">
+            Step 4 turns persisted Identity sessions, camera health, recording
+            state, storage capacity, and system events into one operational
+            view for Administrators and Operators. SignalR invalidates the
+            snapshot immediately, while the same REST contract provides a
+            dependable 30-second polling fallback.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Realtime:</strong> Authenticated SignalR</span>
+            <span><strong>Fallback:</strong> 30-second REST polling</span>
+            <span><strong>Access:</strong> Administrator + Operator</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The assessment requires a dashboard with system overview, camera
+            and recording status, storage usage, active users, total and
+            online/offline cameras, active streams and recordings, recent
+            events, camera health, and uptime. Its central command center must
+            also present a camera wall, live event panel, offline cameras,
+            recording failures, active alarms, storage health, recent
+            incidents, and operator activity without manual refresh.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Summarize</h3>
+              <p>
+                Provide exact operational counts and filesystem capacity from
+                the persisted VMS state.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Prioritize</h3>
+              <p>
+                Separate open alarms, offline cameras, recording failures,
+                incidents, events, and operator activity into usable panels.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Refresh</h3>
+              <p>
+                Update connected screens through authenticated SignalR and
+                keep a polling path when the realtime connection drops.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>Operator-or-Administrator command-center REST endpoint.</li>
+            <li>Authenticated and policy-protected SignalR hub.</li>
+            <li>SignalR access-token handling for browser WebSocket connections.</li>
+            <li>Dashboard invalidation publishing after camera, health, group, login, and logout changes.</li>
+            <li>Total, online, offline, disabled, live-stream, recording, active-user, and uptime metrics.</li>
+            <li>Actual recording-filesystem capacity, free space, usage, and recording-file bytes.</li>
+            <li>Persistent named Docker volume prepared for Step 6 recordings.</li>
+            <li>Full camera-health status wall with metadata and recording state.</li>
+            <li>Offline cameras, recording failures, active alarms, incidents, events, and activity panels.</li>
+            <li>Responsive Material UI layout for operations-room screens and smaller devices.</li>
+            <li>Automatic SignalR reconnect plus 30-second REST polling fallback.</li>
+            <li>Viewer denial at both REST and SignalR boundaries.</li>
+            <li>Focused backend, frontend, live API, storage, and realtime verification.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="definitions">
+          <h2>3. Measurable metric definitions</h2>
+          <p class="section-intro">
+            Dashboard labels are backed by explicit queries rather than visual
+            estimates. These definitions make the assessment proof repeatable.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dashboard item</th>
+                  <th>Exact definition</th>
+                  <th>Current result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Total cameras</td>
+                  <td>Every persisted Camera row</td>
+                  <td>4</td>
+                </tr>
+                <tr>
+                  <td>Online / offline</td>
+                  <td>Camera ConnectionStatus equals Online or Offline</td>
+                  <td>4 / 0 after health cycle</td>
+                </tr>
+                <tr>
+                  <td>Active live streams</td>
+                  <td>Enabled cameras confirmed Online by a real FFprobe check</td>
+                  <td>4</td>
+                </tr>
+                <tr>
+                  <td>Active recordings</td>
+                  <td>Cameras with RecordingStatus equal to Recording</td>
+                  <td>0 until Step 6</td>
+                </tr>
+                <tr>
+                  <td>Active users</td>
+                  <td>Distinct valid, unrevoked sessions active in the last 5 minutes</td>
+                  <td>Dynamic</td>
+                </tr>
+                <tr>
+                  <td>System uptime</td>
+                  <td>Elapsed time since the current API process started</td>
+                  <td>Dynamic</td>
+                </tr>
+                <tr>
+                  <td>Active alarms</td>
+                  <td>Open events with Warning or Critical severity</td>
+                  <td>Dynamic</td>
+                </tr>
+                <tr>
+                  <td>Recent incidents</td>
+                  <td>Recent operational events excluding User Login/Logout</td>
+                  <td>Dynamic</td>
+                </tr>
+                <tr>
+                  <td>Operator activity</td>
+                  <td>Recent login/logout events belonging to Operator-role users</td>
+                  <td>Dynamic</td>
+                </tr>
+                <tr>
+                  <td>Storage used</td>
+                  <td>Used percentage of the recording volume filesystem</td>
+                  <td>Real Docker filesystem value</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="architecture">
+          <h2>4. Dashboard architecture</h2>
+          <p class="section-intro">
+            REST remains the source of truth. SignalR sends a small change
+            message, and the client retrieves a fresh, internally consistent
+            dashboard snapshot. This avoids duplicating aggregation rules
+            across push messages and polling.
+          </p>
+          <div class="architecture" aria-label="Command center data flow">
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>Identity sessions</strong>
+                <small>Users + activity</small>
+              </div>
+              <div class="flow-node">
+                <strong>Cameras</strong>
+                <small>Health + recording state</small>
+              </div>
+              <div class="flow-node">
+                <strong>SystemEvents</strong>
+                <small>Alarms + incidents</small>
+              </div>
+              <div class="flow-node">
+                <strong>Recording volume</strong>
+                <small>Capacity + file bytes</small>
+              </div>
+            </div>
+            <div class="flow-row">
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>CommandCenterService</strong>
+                <small>One measured snapshot</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node">
+                <strong>REST API</strong>
+                <small>Polling source of truth</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>React dashboard</strong>
+                <small>Responsive panels</small>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>Domain change</strong>
+                <small>Health, camera, session</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>SignalR hub</strong>
+                <small>DashboardChanged</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node">
+                <strong>REST refresh</strong>
+                <small>Immediate snapshot reload</small>
+              </div>
+            </div>
+          </div>
+          <div class="callout success">
+            <span class="callout-title">Realtime behavior was tested over a real connection</span>
+            <p>
+              The live smoke test connects as the Operator, triggers a genuine
+              camera FFprobe check, and waits for a DashboardChanged SignalR
+              message containing the expected revision and reason.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="backend">
+          <h2>5. Backend layers</h2>
+          <pre class="file-tree"><code>Vms.Api/
+|-- Controllers/
+|   `-- CommandCenterController.cs
+|-- Hubs/
+|   `-- CommandCenterHub.cs
+|-- Services/
+|   |-- CommandCenterService.cs
+|   |-- DashboardUpdatePublisher.cs
+|   |-- ApplicationUptime.cs
+|   |-- IStorageMetricsProvider.cs
+|   `-- FileSystemStorageMetricsProvider.cs
+|-- Models/
+|   `-- DashboardModels.cs
+|-- Extensions/
+|   |-- AuthenticationExtensions.cs
+|   `-- ServiceCollectionExtensions.cs
+`-- Domain/
+    `-- SystemEventEnums.cs</code></pre>
+
+          <div class="grid two space-top">
+            <article class="card">
+              <h3>CommandCenterService</h3>
+              <p>
+                Aggregates cameras, sessions, Identity roles, events, storage,
+                and uptime into one response contract.
+              </p>
+            </article>
+            <article class="card">
+              <h3>DashboardUpdatePublisher</h3>
+              <p>
+                Uses IHubContext outside the transient Hub to broadcast a
+                monotonic revision, timestamp, and change reason.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Storage provider</h3>
+              <p>
+                Creates and inspects the configured recording path, measures
+                filesystem capacity, and totals existing recording files.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Authorization</h3>
+              <p>
+                REST and SignalR both require the existing
+                OperatorOrAdministrator policy. Viewers receive HTTP 403.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="frontend">
+          <h2>6. Command-center UI</h2>
+          <p class="section-intro">
+            Administrator and Operator home routes now open the command center.
+            Viewers continue directly to their assignment-filtered camera
+            screen.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Metric strip</h3>
+              <p>
+                Cameras, streams, recordings, users, storage, and process
+                uptime are visible without scrolling on wide displays.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Status wall</h3>
+              <p>
+                A 2x2 camera wall shows status, location, measured resolution,
+                and recording indicator. Video playback is Step 5.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Operational panels</h3>
+              <p>
+                Empty states and populated rows are designed for alarms,
+                failures, incidents, activity, offline cameras, and events.
+              </p>
+            </article>
+          </div>
+          <div class="callout">
+            <span class="callout-title">Connection indicator</span>
+            <p>
+              The header identifies Live, Reconnecting, or Polling state.
+              Automatic reconnect is attempted first; the 30-second timer
+              always remains active as a fallback.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>7. Dependencies and what they do</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dependency</th>
+                  <th>Purpose</th>
+                  <th>Important detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ASP.NET Core SignalR</td>
+                  <td>Authenticated server-to-client dashboard notifications</td>
+                  <td>Server assemblies are in the ASP.NET shared framework</td>
+                </tr>
+                <tr>
+                  <td>@microsoft/signalr 10.0.0</td>
+                  <td>Browser hub connection and automatic reconnect</td>
+                  <td>Uses the same Step 2 JWT through accessTokenFactory</td>
+                </tr>
+                <tr>
+                  <td>EF Core + PostgreSQL</td>
+                  <td>Aggregates camera, session, role, and event state</td>
+                  <td>No Step 4 schema migration was required</td>
+                </tr>
+                <tr>
+                  <td>Docker named volume</td>
+                  <td>Persistent recording storage and real capacity metrics</td>
+                  <td>Mounted at /var/lib/vms/recordings</td>
+                </tr>
+                <tr>
+                  <td>Material UI</td>
+                  <td>Responsive metrics, cards, chips, progress, and empty states</td>
+                  <td>Reuses the established dark operations theme</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="space-top">
+            SignalR hub registration, external publishing with
+            <code>IHubContext</code>, and policy authorization follow the
+            official ASP.NET Core guidance:
+            <a href="https://learn.microsoft.com/en-us/aspnet/core/signalr/hubs?view=aspnetcore-10.0">hubs</a>
+            and
+            <a href="https://learn.microsoft.com/en-us/aspnet/core/signalr/authn-and-authz?view=aspnetcore-10.0">authentication and authorization</a>.
+          </p>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important implementation code</h2>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>CommandCenterController.cs</strong>
+              <span>Shared REST snapshot</span>
+            </div>
+            <pre><code>[ApiController]
+[Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
+[Route("api/command-center")]
+public sealed class CommandCenterController(
+    CommandCenterService commandCenter) : ControllerBase
+{
+    [HttpGet]
+    public async Task&lt;ActionResult&lt;CommandCenterResponse&gt;&gt; Get(
+        CancellationToken cancellationToken) =&gt;
+        Ok(await commandCenter.GetAsync(cancellationToken));
+}</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>CommandCenterService.cs</strong>
+              <span>Active users</span>
+            </div>
+            <pre><code>var activeUsers = await database.UserSessions
+    .Where(session =&gt;
+        session.RevokedAt == null
+        &amp;&amp; session.ExpiresAt &gt; now
+        &amp;&amp; session.LastActivityAt &gt; now.AddMinutes(-5))
+    .Select(session =&gt; session.UserId)
+    .Distinct()
+    .CountAsync(cancellationToken);</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>DashboardUpdatePublisher.cs</strong>
+              <span>Realtime invalidation</span>
+            </div>
+            <pre><code>var message = new DashboardChangedMessage(
+    Interlocked.Increment(ref _revision),
+    timeProvider.GetUtcNow(),
+    reason);
+
+await hubContext.Clients.All.SendAsync(
+    "DashboardChanged",
+    message,
+    cancellationToken);</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>commandCenterConnection.ts</strong>
+              <span>Reconnect and token</span>
+            </div>
+            <pre><code>const connection = new HubConnectionBuilder()
+  .withUrl(`${apiBaseUrl}/hubs/command-center`, {
+    accessTokenFactory: () =&gt; accessToken,
+    withCredentials: false,
+  })
+  .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+  .build()
+
+connection.on('DashboardChanged', onChanged)</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Run the evidence</span>
+            </div>
+            <pre><code><span class="token-command">docker compose up --build -d</span>
+<span class="token-command">.\scripts\verify-command-center.ps1</span></code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <div class="stat-grid">
+            <div class="stat">
+              <strong>20 / 20</strong>
+              <span>backend tests passed</span>
+            </div>
+            <div class="stat">
+              <strong>5 / 5</strong>
+              <span>frontend tests passed</span>
+            </div>
+            <div class="stat">
+              <strong>4 / 4</strong>
+              <span>live streams reported</span>
+            </div>
+            <div class="stat">
+              <strong>8 / 8</strong>
+              <span>containers healthy</span>
+            </div>
+          </div>
+
+          <h3 class="space-top">Automated source verification</h3>
+          <ul class="checklist">
+            <li>Backend Release build completed with 0 warnings and 0 errors.</li>
+            <li>Twenty backend tests passed, including metric aggregation and dashboard RBAC.</li>
+            <li>Authenticated SignalR negotiation passed; anonymous negotiation returned 401.</li>
+            <li>Frontend ESLint, five component tests, TypeScript, and production Vite build passed.</li>
+            <li>The Administrator command-center test verifies every required panel heading.</li>
+          </ul>
+
+          <h3 class="space-top">Live command-center proof</h3>
+          <ul class="checklist">
+            <li>Viewer command-center request returned 403.</li>
+            <li>Dashboard reported 4 cameras, 4 online, 0 offline, and 4 active live streams.</li>
+            <li>Dashboard reported 0 active recordings before recording implementation.</li>
+            <li>Distinct active users and positive API process uptime were returned.</li>
+            <li>Camera-health panel returned all four generated cameras.</li>
+            <li>Recording volume returned real capacity and a non-Unavailable health state.</li>
+            <li>Operator activity returned recent Operator authentication.</li>
+            <li>A temporary critical RecordingFailure appeared in failures, alarms, and incidents.</li>
+            <li>The temporary event was deleted after verification.</li>
+            <li>A real SignalR connection received camera-health-tested DashboardChanged.</li>
+          </ul>
+
+          <div class="callout warning">
+            <span class="callout-title">Visual browser limitation</span>
+            <p>
+              The embedded local-browser connection was unavailable. The UI is
+              proven through component rendering tests, production build,
+              frontend health, live dashboard data, and a real SignalR client,
+              but no Step 4 screenshot is claimed.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>10. Boundaries and what comes next</h2>
+          <div class="grid two">
+            <article class="card">
+              <h3>Deliberately deferred</h3>
+              <p>
+                Camera tiles show operational status rather than video.
+                Multi-camera HLS playback, layout switching, fullscreen,
+                digital zoom, and snapshots are Step 5.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Current empty states</h3>
+              <p>
+                Active recordings and recording failures remain empty in
+                normal operation until Step 6 starts real recording processes.
+                The panels and event queries are already functional.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Activity depth</h3>
+              <p>
+                Operator activity currently shows login/logout behavior.
+                Detailed write-operation audit records arrive in Step 9.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Dependency audit</h3>
+              <p>
+                npm reports two high React Router advisories in its current
+                release line. They concern server/RSC behavior not used by this
+                client-only SPA, and no non-breaking patched release is
+                currently offered. Recheck during Step 10 security hardening.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="space-top">Before Step 5, understand:</h3>
+          <ol class="numbered-list">
+            <li>
+              The command center is system-wide and therefore unavailable to
+              Viewers; Viewers continue to their assigned-camera screen.
+            </li>
+            <li>
+              SignalR announces that state changed. REST still computes the
+              authoritative dashboard snapshot for push and polling paths.
+            </li>
+            <li>
+              Camera status wall tiles are ready to become video players, but
+              HLS lifecycle and controls intentionally remain separate.
+            </li>
+            <li>
+              The recording volume now exists and is measured, but no recording
+              file is created until the real FFmpeg workflows in Step 6.
+            </li>
+          </ol>
+
+          <div class="callout">
+            <span class="callout-title">Next approved step: Multi-camera live monitoring</span>
+            <p>
+              Step 5 will add 1/4/9/16 layouts, HLS playback, camera overlays,
+              recording indicators, fullscreen, digital zoom, snapshots, and
+              strict Viewer assignment enforcement.
+            </p>
+          </div>
+        </section>
+
+        <footer class="doc-footer">
+          <span>VMS technical assessment implementation evidence</span>
+          <a href="../index.html">Back to documentation index</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

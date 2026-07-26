@@ -91,10 +91,15 @@ public sealed class FfprobeCameraProbe(
         startInfo.ArgumentList.Add("error");
         startInfo.ArgumentList.Add("-rtsp_transport");
         startInfo.ArgumentList.Add("tcp");
+        startInfo.ArgumentList.Add("-analyzeduration");
+        startInfo.ArgumentList.Add("1000000");
+        startInfo.ArgumentList.Add("-probesize");
+        startInfo.ArgumentList.Add("1000000");
         startInfo.ArgumentList.Add("-select_streams");
         startInfo.ArgumentList.Add("v:0");
         startInfo.ArgumentList.Add("-show_entries");
-        startInfo.ArgumentList.Add("stream=codec_name,width,height,r_frame_rate");
+        startInfo.ArgumentList.Add(
+            "stream=codec_name,width,height,avg_frame_rate,r_frame_rate");
         startInfo.ArgumentList.Add("-of");
         startInfo.ArgumentList.Add("json");
         startInfo.ArgumentList.Add(rtspUrl);
@@ -119,7 +124,9 @@ public sealed class FfprobeCameraProbe(
             var codec = ReadString(stream, "codec_name");
             var width = ReadInt(stream, "width");
             var height = ReadInt(stream, "height");
-            var framesPerSecond = ParseFrameRate(ReadString(stream, "r_frame_rate"));
+            var framesPerSecond =
+                ParseFrameRate(ReadString(stream, "avg_frame_rate"))
+                ?? ParseFrameRate(ReadString(stream, "r_frame_rate"));
 
             return new CameraProbeResult(
                 true,

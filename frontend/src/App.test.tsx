@@ -5,6 +5,10 @@ import App from './App'
 import { AuthProvider } from './auth/AuthContext'
 import { theme } from './theme'
 
+vi.mock('./realtime/commandCenterConnection', () => ({
+  connectCommandCenter: () => () => undefined,
+}))
+
 const viewerLogin = {
   accessToken: 'viewer-token',
   expiresAt: '2099-01-01T00:00:00Z',
@@ -30,6 +34,52 @@ const administratorLogin = {
     role: 'Administrator',
     assignedCameraIds: [],
   },
+}
+
+const commandCenterSnapshot = {
+  generatedAt: '2026-07-26T12:00:00Z',
+  metrics: {
+    totalCameras: 4,
+    onlineCameras: 4,
+    offlineCameras: 0,
+    disabledCameras: 0,
+    activeLiveStreams: 4,
+    activeRecordings: 0,
+    activeUsers: 2,
+    systemUptimeSeconds: 3600,
+  },
+  storage: {
+    path: '/var/lib/vms/recordings',
+    status: 'Healthy',
+    totalBytes: 1_000_000,
+    availableBytes: 600_000,
+    usedBytes: 400_000,
+    recordingBytes: 0,
+    usedPercent: 40,
+    error: null,
+  },
+  cameraHealth: [
+    {
+      id: 'camera-1',
+      name: 'Entrance',
+      location: 'Main entrance',
+      group: 'Perimeter',
+      connectionStatus: 'Online',
+      recordingStatus: 'NotRecording',
+      isEnabled: true,
+      resolution: '640x360',
+      framesPerSecond: 10,
+      lastHeartbeatAt: '2026-07-26T12:00:00Z',
+      lastCheckedAt: '2026-07-26T12:00:00Z',
+      lastConnectionError: null,
+    },
+  ],
+  offlineCameras: [],
+  recentEvents: [],
+  recordingFailures: [],
+  activeAlarms: [],
+  recentIncidents: [],
+  operatorActivity: [],
 }
 
 function renderApp(initialPath = '/') {
@@ -179,5 +229,38 @@ describe('authentication and authorization UI', () => {
     expect(screen.getByRole('button', { name: /add camera/i }))
       .toBeInTheDocument()
     expect(screen.getByRole('link', { name: /manage/i })).toBeInTheDocument()
+  })
+
+  it('loads the command center with required operational metrics', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.endsWith('/api/command-center')) {
+        return Response.json(commandCenterSnapshot)
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/command-center')
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Command center',
+        level: 2,
+      }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Live streams')).toBeInTheDocument()
+    expect(screen.getByText('Active users')).toBeInTheDocument()
+    expect(screen.getByText('Storage health')).toBeInTheDocument()
+    expect(screen.getByText('Active alarms')).toBeInTheDocument()
+    expect(screen.getByText('Recording failures')).toBeInTheDocument()
+    expect(screen.getByText('Recent incidents')).toBeInTheDocument()
+    expect(screen.getByText('Operator activity')).toBeInTheDocument()
   })
 })

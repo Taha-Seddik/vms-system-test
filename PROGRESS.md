@@ -8,7 +8,7 @@ current step has been reviewed and explicitly approved.
 | 1. Repository and media foundation | Completed and verified | Git repository, API/frontend/test scaffolds, healthy Compose topology, four decodable HLS feeds, verification script, HTML implementation guide |
 | 2. Authentication, roles, and assignments | Completed and verified | ASP.NET Core Identity, layered backend, JWT sessions, three Identity roles, lockout, persisted Viewer assignments, login/logout events, protected React routes, 13 backend tests, 3 frontend tests, live verification script, HTML guide |
 | 3. Camera management and health | Completed and verified | Persistent cameras/groups, Administrator CRUD UI/API, FFprobe tests, automatic status and heartbeat monitoring, offline/reconnected events, 17 backend tests, 4 frontend tests, clean migration proof, live verification script, HTML guide |
-| 4. Command center dashboard | Not started | — |
+| 4. Command center dashboard | Completed and verified | Aggregated operational snapshot, measurable metrics, recording-volume health, Administrator/Operator dashboard, SignalR invalidation with polling fallback, 20 backend tests, 5 frontend tests, live verification script, HTML guide |
 | 5. Multi-camera live monitoring | Not started | — |
 | 6. Real recording workflows | Not started | — |
 | 7. Playback and keyframes | Not started | — |
@@ -85,3 +85,32 @@ current step has been reviewed and explicitly approved.
   and group after verification.
 - `docs/steps/step-03-camera-management-health.html` explains the architecture,
   dependencies, code, proof, tradeoffs, and Step 4 handoff.
+
+## Step 4 acceptance evidence
+
+- `GET /api/command-center` returns one authoritative snapshot containing all
+  assessment dashboard and central-command-center categories.
+- Active users, live streams, active recordings, active alarms, incidents,
+  operator activity, storage health, and uptime have explicit measurable
+  definitions rather than display-only placeholders.
+- Storage capacity and usage are read from the mounted recording volume;
+  warning and critical thresholds are configurable.
+- Administrators and Operators can access the command center. Viewers receive
+  `403`, and anonymous SignalR negotiations receive `401`.
+- SignalR notifications are published after relevant login/logout, camera,
+  group, connection-test, and health-monitor actions. Clients reload the
+  authoritative REST snapshot and fall back to a 30-second poll.
+- The responsive React dashboard includes metrics, camera health, storage,
+  offline cameras, recording failures, active alarms, recent incidents,
+  operator activity, and recent events with explicit empty states.
+- `dotnet test Vms.slnx`: 20 passed; frontend tests: 5 passed.
+- Backend release build completed with 0 warnings/0 errors; frontend lint and
+  production build passed.
+- `scripts/verify-command-center.ps1` passed against the running Compose stack.
+  It verified a temporary critical recording-failure alarm and received a real
+  SignalR update triggered by a real FFprobe camera test, then cleaned up.
+- Steps 1, 2, and 3 verification scripts passed again; all eight Compose
+  services were healthy and all four HLS streams remained decodable.
+- `docs/steps/step-04-command-center-dashboard.html` explains requirements,
+  metric semantics, architecture, dependencies, code, proof, boundaries, and
+  the Step 5 handoff.

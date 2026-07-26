@@ -23,10 +23,7 @@ public sealed class CameraHealthMonitor(
                 stoppingToken);
         }
 
-        using var timer = new PeriodicTimer(
-            TimeSpan.FromSeconds(options.Value.IntervalSeconds));
-
-        do
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
@@ -45,7 +42,17 @@ public sealed class CameraHealthMonitor(
                     exception,
                     "The camera health-monitor cycle failed.");
             }
+
+            try
+            {
+                await Task.Delay(
+                    TimeSpan.FromSeconds(options.Value.IntervalSeconds),
+                    stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 }

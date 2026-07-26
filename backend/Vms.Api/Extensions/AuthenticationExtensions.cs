@@ -70,6 +70,18 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        if (!string.IsNullOrWhiteSpace(accessToken)
+                            && context.HttpContext.Request.Path.StartsWithSegments(
+                                "/hubs/command-center"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
                     OnTokenValidated = ValidateSessionAsync
                 };
             });

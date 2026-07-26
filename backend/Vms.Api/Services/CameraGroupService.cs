@@ -6,7 +6,9 @@ using Vms.Api.Models;
 
 namespace Vms.Api.Services;
 
-public sealed class CameraGroupService(VmsDbContext database)
+public sealed class CameraGroupService(
+    VmsDbContext database,
+    DashboardUpdatePublisher dashboardUpdates)
 {
     public async Task<IReadOnlyList<CameraGroupResponse>> GetAllAsync(
         CancellationToken cancellationToken)
@@ -41,6 +43,9 @@ public sealed class CameraGroupService(VmsDbContext database)
         };
         database.CameraGroups.Add(group);
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync(
+            "camera-group-created",
+            cancellationToken);
         return CameraGroupMutationResult.Success(group.ToResponse());
     }
 
@@ -69,6 +74,9 @@ public sealed class CameraGroupService(VmsDbContext database)
         group.Description = NormalizeDescription(request.Description);
         group.UpdatedAt = DateTimeOffset.UtcNow;
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync(
+            "camera-group-updated",
+            cancellationToken);
         return CameraGroupMutationResult.Success(group.ToResponse());
     }
 
@@ -87,6 +95,9 @@ public sealed class CameraGroupService(VmsDbContext database)
 
         database.CameraGroups.Remove(group);
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync(
+            "camera-group-deleted",
+            cancellationToken);
         return CameraGroupMutationResult.Success();
     }
 

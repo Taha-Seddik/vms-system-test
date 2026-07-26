@@ -48,7 +48,16 @@ export function AppLayout() {
               spacing={1}
               aria-label="Primary navigation"
             >
-              <Button component={NavLink} to="/" color="inherit">
+              {!hasRole('Viewer') && (
+                <Button
+                  component={NavLink}
+                  to="/command-center"
+                  color="inherit"
+                >
+                  Command
+                </Button>
+              )}
+              <Button component={NavLink} to="/cameras" color="inherit">
                 Cameras
               </Button>
               {hasRole('Administrator') && (

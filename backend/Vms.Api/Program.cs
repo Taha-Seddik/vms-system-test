@@ -1,5 +1,6 @@
 using Vms.Api.Data;
 using Vms.Api.Extensions;
+using Vms.Api.Hubs;
 
 if (args.Contains("--health-check", StringComparer.Ordinal))
 {
@@ -31,6 +32,7 @@ app.UseAuthorization();
 await DatabaseInitializer.InitializeAsync(app.Services);
 
 app.MapControllers();
+app.MapHub<CommandCenterHub>("/hubs/command-center");
 
 app.Run();
 return 0;

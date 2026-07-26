@@ -4,7 +4,19 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ActivityPage } from './pages/ActivityPage'
 import { CamerasPage } from './pages/CamerasPage'
 import { CameraManagementPage } from './pages/CameraManagementPage'
+import { CommandCenterPage } from './pages/CommandCenterPage'
 import { LoginPage } from './pages/LoginPage'
+import { useAuth } from './auth/AuthContext'
+
+function RoleHome() {
+  const { user } = useAuth()
+  return (
+    <Navigate
+      to={user?.role === 'Viewer' ? '/cameras' : '/command-center'}
+      replace
+    />
+  )
+}
 
 function App() {
   return (
@@ -12,7 +24,17 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={<CamerasPage />} />
+          <Route index element={<RoleHome />} />
+          <Route path="cameras" element={<CamerasPage />} />
+          <Route
+            element={
+              <ProtectedRoute
+                allowedRoles={['Administrator', 'Operator']}
+              />
+            }
+          >
+            <Route path="command-center" element={<CommandCenterPage />} />
+          </Route>
           <Route
             element={<ProtectedRoute allowedRoles={['Administrator']} />}
           >

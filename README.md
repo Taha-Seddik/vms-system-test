@@ -3,10 +3,11 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Steps 1 through 3**: the application/media
+The current repository contains **Steps 1 through 4**: the application/media
 foundation, Identity-based authentication and role authorization, Viewer
 camera assignments, persistent camera management, FFprobe connection testing,
-automatic health monitoring, heartbeats, and connectivity events.
+automatic health monitoring, heartbeats, connectivity events, and a real-time
+operational command center.
 
 ## Architecture
 
@@ -164,6 +165,17 @@ heartbeats, camera and group CRUD, enable/disable, and a real
 offline-to-reconnected event transition. Temporary verification resources are
 cleaned up automatically.
 
+Verify Step 4 command center aggregation and real-time updates:
+
+```powershell
+.\scripts\verify-command-center.ps1
+```
+
+The Step 4 script checks role boundaries, the complete operational snapshot,
+actual recording-volume capacity, active-user and uptime metrics, alarm and
+incident classification, and a real SignalR notification caused by a real
+FFprobe camera test. Its temporary failure event is removed automatically.
+
 Local source checks:
 
 ```powershell
@@ -237,6 +249,33 @@ Administrators can use the Material UI management workspace at
 the normal camera screen. Viewers receive status only for their assigned
 cameras and cannot run probes or mutate configuration.
 
+## Step 4 command center dashboard
+
+Administrators and Operators land on
+<http://localhost:3000/command-center>. One aggregated API read supplies camera,
+stream, recording, active-user, uptime, storage, alarm, incident, failure, and
+operator-activity data. SignalR invalidates the snapshot after relevant
+authentication, camera-management, connection-test, or health-monitor changes;
+the browser then reloads authoritative data. A 30-second REST poll remains as a
+fallback.
+
+The dashboard uses these measurable definitions:
+
+- active users are distinct, enabled, unrevoked sessions seen in the last five
+  minutes;
+- active live streams are enabled cameras currently confirmed Online by
+  FFprobe;
+- active alarms are open Warning or Critical events;
+- recent incidents are operational events rather than login/logout activity;
+- storage health comes from the mounted recording volume, with warning and
+  critical thresholds configurable in `.env`;
+- uptime begins at API process start.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/command-center` | Administrator, Operator | Complete dashboard snapshot |
+| `/hubs/command-center` | Administrator, Operator | SignalR snapshot-invalidation notifications |
+
 ## Repository layout
 
 ```text
@@ -258,6 +297,7 @@ scripts/
   verify-foundation.ps1    End-to-end Step 1 verification
   verify-auth.ps1          End-to-end Step 2 authorization verification
   verify-camera-health.ps1 End-to-end Step 3 camera/health verification
+  verify-command-center.ps1 End-to-end Step 4 dashboard/SignalR verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -283,6 +323,9 @@ The Step 2 guide is:
 The Step 3 guide is:
 [`docs/steps/step-03-camera-management-health.html`](docs/steps/step-03-camera-management-health.html).
 
+The Step 4 guide is:
+[`docs/steps/step-04-command-center-dashboard.html`](docs/steps/step-04-command-center-dashboard.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -295,7 +338,9 @@ color treatment.
 
 ## Scope
 
-Dashboards, live playback UI, recording workflows, the full event/alarm
-lifecycle, user administration, search, and audit-log management remain gated
-by the approved plan. The raw local MediaMTX HLS port is not yet protected;
-media authorization hardening is scheduled for Step 10.
+Live playback UI, recording workflows, the full event/alarm lifecycle, user
+administration, search, and audit-log management remain gated by the approved
+plan. The Step 4 dashboard truthfully reports the currently implemented
+recording state, so recording counts and failures will become richer in Step 6.
+The raw local MediaMTX HLS port is not yet protected; media authorization
+hardening is scheduled for Step 10.

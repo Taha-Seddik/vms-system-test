@@ -12,12 +12,26 @@ public sealed class CameraHealthService(
     ICameraProbe cameraProbe,
     IOptions<CameraMonitoringOptions> options,
     CameraHealthCheckCoordinator coordinator,
+    DashboardUpdatePublisher dashboardUpdates,
     ILogger<CameraHealthService> logger)
 {
     public async Task<CameraConnectionTestResponse?> TestAsync(
         string cameraId,
-        CancellationToken cancellationToken) =>
-        await CheckAsync(cameraId, allowDisabled: true, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        var result = await CheckAsync(
+            cameraId,
+            allowDisabled: true,
+            cancellationToken);
+        if (result is not null)
+        {
+            await dashboardUpdates.PublishAsync(
+                "camera-health-tested",
+                cancellationToken);
+        }
+
+        return result;
+    }
 
     public async Task CheckAllEnabledAsync(CancellationToken cancellationToken)
     {
@@ -32,6 +46,13 @@ public sealed class CameraHealthService(
         {
             cancellationToken.ThrowIfCancellationRequested();
             await CheckAsync(cameraId, allowDisabled: false, cancellationToken);
+        }
+
+        if (cameraIds.Count > 0)
+        {
+            await dashboardUpdates.PublishAsync(
+                "camera-health-cycle",
+                cancellationToken);
         }
     }
 

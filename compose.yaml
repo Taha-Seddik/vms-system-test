@@ -112,8 +112,13 @@ services:
       Cors__AllowedOrigins__0: http://localhost:${FRONTEND_PORT:-3000}
       CameraMonitoring__IntervalSeconds: ${CAMERA_MONITOR_INTERVAL_SECONDS:-15}
       CameraMonitoring__ProbeTimeoutSeconds: ${CAMERA_PROBE_TIMEOUT_SECONDS:-5}
+      RecordingStorage__Path: /var/lib/vms/recordings
+      RecordingStorage__WarningPercent: ${STORAGE_WARNING_PERCENT:-80}
+      RecordingStorage__CriticalPercent: ${STORAGE_CRITICAL_PERCENT:-90}
     ports:
       - "${API_PORT:-8080}:8080"
+    volumes:
+      - recording-data:/var/lib/vms/recordings
     depends_on:
       postgres:
         condition: service_healthy
@@ -156,6 +161,7 @@ services:
 
 volumes:
   postgres-data:
+  recording-data:
 
 networks:
   vms:

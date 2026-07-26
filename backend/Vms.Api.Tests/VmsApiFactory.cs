@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vms.Api.Data;
+using Vms.Api.Models;
 using Vms.Api.Services;
 
 namespace Vms.Api.Tests;
@@ -31,11 +32,13 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IDbContextOptionsConfiguration<VmsDbContext>>();
             services.RemoveAll<VmsDbContext>();
             services.RemoveAll<ICameraProbe>();
+            services.RemoveAll<IStorageMetricsProvider>();
             services.AddDbContext<VmsDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
             services.AddSingleton<FakeCameraProbe>();
             services.AddSingleton<ICameraProbe>(
                 provider => provider.GetRequiredService<FakeCameraProbe>());
+            services.AddSingleton<IStorageMetricsProvider, FakeStorageMetricsProvider>();
         });
     }
 }
@@ -69,4 +72,19 @@ public sealed class FakeCameraProbe : ICameraProbe
             null,
             null,
             error);
+}
+
+public sealed class FakeStorageMetricsProvider : IStorageMetricsProvider
+{
+    public Task<StorageHealthResponse> GetAsync(
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new StorageHealthResponse(
+            "/test/recordings",
+            StorageHealthStatus.Healthy,
+            1_000_000,
+            600_000,
+            400_000,
+            25_000,
+            40,
+            null));
 }

@@ -8,7 +8,9 @@ using Vms.Api.Utils;
 
 namespace Vms.Api.Services;
 
-public sealed class CameraManagementService(VmsDbContext database)
+public sealed class CameraManagementService(
+    VmsDbContext database,
+    DashboardUpdatePublisher dashboardUpdates)
 {
     public async Task<IReadOnlyList<ManagedCameraResponse>> GetAllAsync(
         CancellationToken cancellationToken)
@@ -77,6 +79,7 @@ public sealed class CameraManagementService(VmsDbContext database)
         await database.SaveChangesAsync(cancellationToken);
         await database.Entry(camera).Reference(item => item.Group)
             .LoadAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync("camera-created", cancellationToken);
         return CameraMutationResult.Success(camera.ToManagedResponse());
     }
 
@@ -125,6 +128,7 @@ public sealed class CameraManagementService(VmsDbContext database)
         await database.SaveChangesAsync(cancellationToken);
         await database.Entry(camera).Reference(item => item.Group)
             .LoadAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync("camera-updated", cancellationToken);
         return CameraMutationResult.Success(camera.ToManagedResponse());
     }
 
@@ -149,6 +153,9 @@ public sealed class CameraManagementService(VmsDbContext database)
         camera.LastConnectionError = null;
         camera.UpdatedAt = DateTimeOffset.UtcNow;
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync(
+            isEnabled ? "camera-enabled" : "camera-disabled",
+            cancellationToken);
 
         return CameraMutationResult.Success(camera.ToManagedResponse());
     }
@@ -168,6 +175,7 @@ public sealed class CameraManagementService(VmsDbContext database)
 
         database.Cameras.Remove(camera);
         await database.SaveChangesAsync(cancellationToken);
+        await dashboardUpdates.PublishAsync("camera-deleted", cancellationToken);
         return CameraMutationResult.Success();
     }
 

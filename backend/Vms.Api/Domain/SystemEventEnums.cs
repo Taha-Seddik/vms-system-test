@@ -8,7 +8,8 @@ public enum SystemEventType
     UserLogin,
     UserLogout,
     CameraOffline,
-    CameraReconnected
+    CameraReconnected,
+    RecordingFailure
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<EventSeverity>))]
