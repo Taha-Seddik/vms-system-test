@@ -36,6 +36,17 @@ const administratorLogin = {
   },
 }
 
+const activeAlarmEvents = Array.from({ length: 6 }, (_, index) => ({
+  id: `alarm-${index + 1}`,
+  type: 'CameraOffline',
+  timestamp: `2026-07-26T12:0${index}:00Z`,
+  cameraId: `camera-${(index % 4) + 1}`,
+  cameraName: `Camera ${(index % 4) + 1}`,
+  severity: index === 0 ? 'Critical' : 'Warning',
+  description: `Alarm event ${index + 1}`,
+  status: 'Open',
+}))
+
 const commandCenterSnapshot = {
   generatedAt: '2026-07-26T12:00:00Z',
   metrics: {
@@ -77,7 +88,7 @@ const commandCenterSnapshot = {
   offlineCameras: [],
   recentEvents: [],
   recordingFailures: [],
-  activeAlarms: [],
+  activeAlarms: activeAlarmEvents,
   recentIncidents: [],
   operatorActivity: [],
 }
@@ -262,5 +273,20 @@ describe('authentication and authorization UI', () => {
     expect(screen.getByText('Recording failures')).toBeInTheDocument()
     expect(screen.getByText('Recent incidents')).toBeInTheDocument()
     expect(screen.getByText('Operator activity')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', {
+        name: /command center operational overview/i,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Alarm event 5')).toBeInTheDocument()
+    expect(screen.queryByText('Alarm event 6')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /view all 6/i }))
+
+    expect(await screen.findByText('Showing all records')).toBeInTheDocument()
+    expect(screen.getByText('Alarm event 6')).toBeInTheDocument()
+    fireEvent.click(
+      screen.getByRole('button', { name: /close detail panel/i }),
+    )
   })
 })

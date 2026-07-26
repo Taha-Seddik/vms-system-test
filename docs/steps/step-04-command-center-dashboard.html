@@ -315,35 +315,40 @@
           <p class="section-intro">
             Administrator and Operator home routes now open the command center.
             Viewers continue directly to their assignment-filtered camera
-            screen.
+            screen. The application shell uses the familiar administration
+            pattern of a fixed left navigation rail on desktop and a solid
+            mobile header with an off-canvas menu.
           </p>
           <div class="grid three">
             <article class="card">
-              <h3>Metric strip</h3>
+              <h3>Readable hierarchy</h3>
               <p>
-                Cameras, streams, recordings, users, storage, and process
-                uptime are visible without scrolling on wide displays.
+                A restrained hero, three-column metric grid, consistent panel
+                surfaces, and meaningful spacing make the most important
+                operational state easy to scan.
               </p>
             </article>
             <article class="card">
-              <h3>Status wall</h3>
+              <h3>Controlled previews</h3>
               <p>
-                A 2x2 camera wall shows status, location, measured resolution,
-                and recording indicator. Video playback is Step 5.
+                Alarm, incident, failure, activity, offline-camera, and event
+                cards show no more than five rows, preventing long lists from
+                overwhelming the command center.
               </p>
             </article>
             <article class="card">
-              <h3>Operational panels</h3>
+              <h3>Detail drawers</h3>
               <p>
-                Empty states and populated rows are designed for alarms,
-                failures, incidents, activity, offline cameras, and events.
+                View details and View all actions open a right-side panel with
+                the complete API result, full descriptions, dates, and clear
+                close behavior.
               </p>
             </article>
           </div>
           <div class="callout">
             <span class="callout-title">Connection indicator</span>
             <p>
-              The header identifies Live, Reconnecting, or Polling state.
+              The dashboard hero identifies Live, Reconnecting, or Polling state.
               Automatic reconnect is attempted first; the 30-second timer
               always remains active as a fallback.
             </p>
@@ -506,6 +511,7 @@ connection.on('DashboardChanged', onChanged)</code></pre>
             <li>Authenticated SignalR negotiation passed; anonymous negotiation returned 401.</li>
             <li>Frontend ESLint, five component tests, TypeScript, and production Vite build passed.</li>
             <li>The Administrator command-center test verifies every required panel heading.</li>
+            <li>The UI test verifies left-sidebar navigation, a five-row alarm preview, opening all six test alarms in the detail drawer, and closing the drawer.</li>
           </ul>
 
           <h3 class="space-top">Live command-center proof</h3>
@@ -527,8 +533,8 @@ connection.on('DashboardChanged', onChanged)</code></pre>
             <p>
               The embedded local-browser connection was unavailable. The UI is
               proven through component rendering tests, production build,
-              frontend health, live dashboard data, and a real SignalR client,
-              but no Step 4 screenshot is claimed.
+              responsive source review, frontend health, live dashboard data,
+              and a real SignalR client, but no Step 4 screenshot is claimed.
             </p>
           </div>
         </section>

@@ -103,6 +103,12 @@ current step has been reviewed and explicitly approved.
 - The responsive React dashboard includes metrics, camera health, storage,
   offline cameras, recording failures, active alarms, recent incidents,
   operator activity, and recent events with explicit empty states.
+- The reviewed application shell now uses a fixed left administration sidebar
+  on desktop and a solid mobile header/drawer. Camera and group management
+  remain together in one workspace.
+- Operational cards show no more than five preview rows. Focused tests verify
+  that View all opens the full result in a right-side detail drawer and that
+  the drawer closes accessibly.
 - `dotnet test Vms.slnx`: 20 passed; frontend tests: 5 passed.
 - Backend release build completed with 0 warnings/0 errors; frontend lint and
   production build passed.

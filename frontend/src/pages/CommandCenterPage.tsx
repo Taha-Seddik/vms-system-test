@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  Divider,
+  Drawer,
   Grid,
+  IconButton,
   LinearProgress,
   Stack,
   Typography,
@@ -18,10 +22,32 @@ import type {
   CommandCenterSnapshot,
   DashboardCamera,
   DashboardEvent,
+  OperatorActivity,
   RealtimeStatus,
 } from '../types/dashboard'
 
 const pollIntervalMilliseconds = 30_000
+const previewLimit = 5
+
+type DetailPanel =
+  | {
+      kind: 'events'
+      title: string
+      description: string
+      items: DashboardEvent[]
+    }
+  | {
+      kind: 'cameras'
+      title: string
+      description: string
+      items: DashboardCamera[]
+    }
+  | {
+      kind: 'activity'
+      title: string
+      description: string
+      items: OperatorActivity[]
+    }
 
 export function CommandCenterPage() {
   const { accessToken } = useAuth()
@@ -29,6 +55,7 @@ export function CommandCenterPage() {
   const [error, setError] = useState<string | null>(null)
   const [realtimeStatus, setRealtimeStatus] =
     useState<RealtimeStatus>('Connecting')
+  const [detailPanel, setDetailPanel] = useState<DetailPanel | null>(null)
 
   const fetchSnapshot = useCallback(
     () =>
@@ -80,6 +107,24 @@ export function CommandCenterPage() {
     }
   }, [accessToken, fetchSnapshot])
 
+  const openEvents = (
+    title: string,
+    description: string,
+    items: DashboardEvent[],
+  ) => setDetailPanel({ kind: 'events', title, description, items })
+
+  const openCameras = (
+    title: string,
+    description: string,
+    items: DashboardCamera[],
+  ) => setDetailPanel({ kind: 'cameras', title, description, items })
+
+  const openActivity = (
+    title: string,
+    description: string,
+    items: OperatorActivity[],
+  ) => setDetailPanel({ kind: 'activity', title, description, items })
+
   if (!dashboard && !error) {
     return (
       <Box className="content-loader">
@@ -90,38 +135,49 @@ export function CommandCenterPage() {
 
   return (
     <Stack spacing={3.5}>
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        sx={{ justifyContent: 'space-between', gap: 2 }}
-      >
-        <Box>
-          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-            <Chip label="Security operations" color="primary" size="small" />
+      <Box className="dashboard-hero">
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          sx={{ justifyContent: 'space-between', gap: 3 }}
+        >
+          <Box>
+            <Typography className="page-eyebrow">
+              Security operations
+            </Typography>
+            <Typography variant="h2" sx={{ fontSize: { xs: 34, md: 46 } }}>
+              Command center
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 700 }}>
+              A focused view of camera health, incidents, users, recordings,
+              and storage across the VMS.
+            </Typography>
+          </Box>
+          <Stack
+            sx={{
+              alignItems: { xs: 'flex-start', md: 'flex-end' },
+              justifyContent: 'space-between',
+              gap: 1.25,
+            }}
+          >
             <Chip
               label={
                 realtimeStatus === 'Live'
-                  ? 'Realtime connected'
+                  ? 'Live updates connected'
                   : `${realtimeStatus} · 30s fallback`
               }
               color={realtimeStatus === 'Live' ? 'success' : 'warning'}
               size="small"
               variant="outlined"
             />
+            {dashboard && (
+              <Typography color="text.secondary" variant="caption">
+                Last refreshed{' '}
+                {new Date(dashboard.generatedAt).toLocaleTimeString()}
+              </Typography>
+            )}
           </Stack>
-          <Typography variant="h2" sx={{ fontSize: { xs: 34, md: 48 } }}>
-            Command center
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 760 }}>
-            Live operational health, alarms, incidents, users, recordings, and
-            storage from one automatically refreshed view.
-          </Typography>
-        </Box>
-        {dashboard && (
-          <Typography color="text.secondary" variant="caption">
-            Snapshot {new Date(dashboard.generatedAt).toLocaleTimeString()}
-          </Typography>
-        )}
-      </Stack>
+        </Stack>
+      </Box>
 
       {error && <Alert severity="warning">{error}</Alert>}
       {dashboard && (
@@ -149,6 +205,16 @@ export function CommandCenterPage() {
               <DashboardPanel
                 title="Active alarms"
                 count={dashboard.activeAlarms.length}
+                onOpen={
+                  dashboard.activeAlarms.length > 0
+                    ? () =>
+                        openEvents(
+                          'Active alarms',
+                          'Every open warning or critical event requiring attention.',
+                          dashboard.activeAlarms,
+                        )
+                    : undefined
+                }
               >
                 <EventList
                   events={dashboard.activeAlarms}
@@ -160,27 +226,18 @@ export function CommandCenterPage() {
               <DashboardPanel
                 title="Offline cameras"
                 count={dashboard.offlineCameras.length}
+                onOpen={
+                  dashboard.offlineCameras.length > 0
+                    ? () =>
+                        openCameras(
+                          'Offline cameras',
+                          'Cameras that failed their most recent connection probe.',
+                          dashboard.offlineCameras,
+                        )
+                    : undefined
+                }
               >
-                {dashboard.offlineCameras.length === 0 ? (
-                  <EmptyPanel message="All enabled cameras are reporting." />
-                ) : (
-                  <Stack spacing={1}>
-                    {dashboard.offlineCameras.map((camera) => (
-                      <Box className="dashboard-list-row" key={camera.id}>
-                        <Box>
-                          <Typography sx={{ fontWeight: 750 }}>
-                            {camera.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {camera.location} ·{' '}
-                            {camera.lastConnectionError ?? 'No response'}
-                          </Typography>
-                        </Box>
-                        <Chip label="Offline" color="error" size="small" />
-                      </Box>
-                    ))}
-                  </Stack>
-                )}
+                <OfflineCameraList cameras={dashboard.offlineCameras} />
               </DashboardPanel>
             </Grid>
 
@@ -188,6 +245,16 @@ export function CommandCenterPage() {
               <DashboardPanel
                 title="Recording failures"
                 count={dashboard.recordingFailures.length}
+                onOpen={
+                  dashboard.recordingFailures.length > 0
+                    ? () =>
+                        openEvents(
+                          'Recording failures',
+                          'Recent recording jobs that could not start or complete.',
+                          dashboard.recordingFailures,
+                        )
+                    : undefined
+                }
               >
                 <EventList
                   events={dashboard.recordingFailures}
@@ -199,6 +266,16 @@ export function CommandCenterPage() {
               <DashboardPanel
                 title="Recent incidents"
                 count={dashboard.recentIncidents.length}
+                onOpen={
+                  dashboard.recentIncidents.length > 0
+                    ? () =>
+                        openEvents(
+                          'Recent incidents',
+                          'Operational events, excluding authentication activity.',
+                          dashboard.recentIncidents,
+                        )
+                    : undefined
+                }
               >
                 <EventList
                   events={dashboard.recentIncidents}
@@ -211,32 +288,36 @@ export function CommandCenterPage() {
               <DashboardPanel
                 title="Operator activity"
                 count={dashboard.operatorActivity.length}
+                onOpen={
+                  dashboard.operatorActivity.length > 0
+                    ? () =>
+                        openActivity(
+                          'Operator activity',
+                          'Recent authentication activity by Operator accounts.',
+                          dashboard.operatorActivity,
+                        )
+                    : undefined
+                }
               >
-                {dashboard.operatorActivity.length === 0 ? (
-                  <EmptyPanel message="No recent Operator activity." />
-                ) : (
-                  <Stack spacing={1}>
-                    {dashboard.operatorActivity.map((activity) => (
-                      <Box className="dashboard-list-row" key={activity.id}>
-                        <Box>
-                          <Typography sx={{ fontWeight: 700 }}>
-                            {activity.displayName}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {activity.description}
-                          </Typography>
-                        </Box>
-                        <Timestamp value={activity.timestamp} />
-                      </Box>
-                    ))}
-                  </Stack>
-                )}
+                <OperatorActivityList
+                  activity={dashboard.operatorActivity}
+                />
               </DashboardPanel>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <DashboardPanel
                 title="Recent events"
                 count={dashboard.recentEvents.length}
+                onOpen={
+                  dashboard.recentEvents.length > 0
+                    ? () =>
+                        openEvents(
+                          'Recent events',
+                          'The latest authentication and operational events.',
+                          dashboard.recentEvents,
+                        )
+                    : undefined
+                }
               >
                 <EventList
                   events={dashboard.recentEvents}
@@ -245,6 +326,10 @@ export function CommandCenterPage() {
               </DashboardPanel>
             </Grid>
           </Grid>
+          <DashboardDetailDrawer
+            panel={detailPanel}
+            onClose={() => setDetailPanel(null)}
+          />
         </>
       )}
     </Stack>
@@ -256,36 +341,42 @@ function MetricGrid({ dashboard }: { dashboard: CommandCenterSnapshot }) {
   const cards = [
     {
       label: 'Cameras',
+      code: 'CAM',
       value: metrics.totalCameras,
       detail: `${metrics.onlineCameras} online · ${metrics.offlineCameras} offline`,
       tone: 'blue',
     },
     {
       label: 'Live streams',
+      code: 'LIVE',
       value: metrics.activeLiveStreams,
       detail: 'Enabled and probe-confirmed',
       tone: 'green',
     },
     {
       label: 'Recordings',
+      code: 'REC',
       value: metrics.activeRecordings,
       detail: 'Active recording processes',
       tone: 'amber',
     },
     {
       label: 'Active users',
+      code: 'USR',
       value: metrics.activeUsers,
       detail: 'Distinct users in last 5 minutes',
       tone: 'violet',
     },
     {
       label: 'Storage used',
+      code: 'STO',
       value: `${storage.usedPercent.toFixed(1)}%`,
       detail: formatBytes(storage.availableBytes) + ' available',
       tone: 'blue',
     },
     {
       label: 'System uptime',
+      code: 'UP',
       value: formatDuration(metrics.systemUptimeSeconds),
       detail: 'Since API process start',
       tone: 'green',
@@ -297,9 +388,15 @@ function MetricGrid({ dashboard }: { dashboard: CommandCenterSnapshot }) {
       {cards.map((card) => (
         <Card className={`dashboard-metric tone-${card.tone}`} key={card.label}>
           <CardContent>
-            <Typography variant="overline" color="text.secondary">
-              {card.label}
-            </Typography>
+            <Stack
+              direction="row"
+              sx={{ justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <Typography variant="overline" color="text.secondary">
+                {card.label}
+              </Typography>
+              <Box className="metric-code">{card.code}</Box>
+            </Stack>
             <Typography variant="h3" sx={{ mt: 0.5, fontWeight: 800 }}>
               {card.value}
             </Typography>
@@ -317,11 +414,13 @@ function DashboardPanel({
   title,
   subtitle,
   count,
+  onOpen,
   children,
 }: {
   title: string
   subtitle?: string
   count?: number
+  onOpen?: () => void
   children: React.ReactNode
 }) {
   return (
@@ -341,9 +440,18 @@ function DashboardPanel({
               </Typography>
             )}
           </Box>
-          {count !== undefined && (
-            <Chip label={count} size="small" variant="outlined" />
-          )}
+          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+            {count !== undefined && (
+              <Chip label={count} size="small" variant="outlined" />
+            )}
+            {onOpen && (
+              <Button size="small" onClick={onOpen}>
+                {count !== undefined && count > previewLimit
+                  ? `View all ${count}`
+                  : 'View details'}
+              </Button>
+            )}
+          </Stack>
         </Stack>
         {children}
       </CardContent>
@@ -430,6 +538,11 @@ function StoragePanel({ dashboard }: { dashboard: CommandCenterSnapshot }) {
         >
           {storage.path}
         </Typography>
+        {storage.error && (
+          <Alert severity="error" sx={{ mt: 1 }}>
+            {storage.error}
+          </Alert>
+        )}
       </Stack>
     </DashboardPanel>
   )
@@ -438,9 +551,11 @@ function StoragePanel({ dashboard }: { dashboard: CommandCenterSnapshot }) {
 function EventList({
   events,
   empty,
+  showAll = false,
 }: {
   events: DashboardEvent[]
   empty: string
+  showAll?: boolean
 }) {
   if (events.length === 0) {
     return <EmptyPanel message={empty} />
@@ -448,7 +563,7 @@ function EventList({
 
   return (
     <Stack spacing={1}>
-      {events.map((event) => (
+      {(showAll ? events : events.slice(0, previewLimit)).map((event) => (
         <Box className="dashboard-list-row" key={event.id}>
           <Box sx={{ minWidth: 0 }}>
             <Stack direction="row" spacing={0.7} sx={{ mb: 0.4 }}>
@@ -467,7 +582,11 @@ function EventList({
                 <Chip label="Open" size="small" variant="outlined" />
               )}
             </Stack>
-            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+            <Typography
+              className={showAll ? undefined : 'preview-description'}
+              variant="body2"
+              sx={{ overflowWrap: 'anywhere' }}
+            >
               {event.description}
             </Typography>
           </Box>
@@ -475,6 +594,130 @@ function EventList({
         </Box>
       ))}
     </Stack>
+  )
+}
+
+function OfflineCameraList({
+  cameras,
+  showAll = false,
+}: {
+  cameras: DashboardCamera[]
+  showAll?: boolean
+}) {
+  if (cameras.length === 0) {
+    return <EmptyPanel message="All enabled cameras are reporting." />
+  }
+
+  return (
+    <Stack spacing={1}>
+      {(showAll ? cameras : cameras.slice(0, previewLimit)).map((camera) => (
+        <Box className="dashboard-list-row" key={camera.id}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 750 }}>{camera.name}</Typography>
+            <Typography
+              className={showAll ? undefined : 'preview-description'}
+              variant="caption"
+              color="text.secondary"
+            >
+              {camera.location} · {camera.lastConnectionError ?? 'No response'}
+            </Typography>
+          </Box>
+          <Chip label="Offline" color="error" size="small" />
+        </Box>
+      ))}
+    </Stack>
+  )
+}
+
+function OperatorActivityList({
+  activity,
+  showAll = false,
+}: {
+  activity: OperatorActivity[]
+  showAll?: boolean
+}) {
+  if (activity.length === 0) {
+    return <EmptyPanel message="No recent Operator activity." />
+  }
+
+  return (
+    <Stack spacing={1}>
+      {(showAll ? activity : activity.slice(0, previewLimit)).map((item) => (
+        <Box className="dashboard-list-row" key={item.id}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700 }}>
+              {item.displayName}
+            </Typography>
+            <Typography
+              className={showAll ? undefined : 'preview-description'}
+              variant="caption"
+              color="text.secondary"
+            >
+              {item.description}
+            </Typography>
+          </Box>
+          <Timestamp value={item.timestamp} detailed={showAll} />
+        </Box>
+      ))}
+    </Stack>
+  )
+}
+
+function DashboardDetailDrawer({
+  panel,
+  onClose,
+}: {
+  panel: DetailPanel | null
+  onClose: () => void
+}) {
+  return (
+    <Drawer
+      anchor="right"
+      open={panel !== null}
+      onClose={onClose}
+      className="dashboard-detail-drawer"
+    >
+      {panel && (
+        <Box className="dashboard-detail-panel">
+          <Box className="detail-panel-header">
+            <Box>
+              <Typography className="page-eyebrow">Operational detail</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                {panel.title}
+              </Typography>
+            </Box>
+            <IconButton aria-label="Close detail panel" onClick={onClose}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          <Typography color="text.secondary" sx={{ px: 3, pb: 2 }}>
+            {panel.description}
+          </Typography>
+          <Divider />
+          <Box className="detail-panel-summary">
+            <Typography variant="overline" color="text.secondary">
+              Showing all records
+            </Typography>
+            <Chip label={panel.items.length} size="small" color="primary" />
+          </Box>
+          <Box className="detail-panel-content">
+            {panel.kind === 'events' && (
+              <EventList
+                events={panel.items}
+                empty="No records are currently available."
+                showAll
+              />
+            )}
+            {panel.kind === 'cameras' && (
+              <OfflineCameraList cameras={panel.items} showAll />
+            )}
+            {panel.kind === 'activity' && (
+              <OperatorActivityList activity={panel.items} showAll />
+            )}
+          </Box>
+        </Box>
+      )}
+    </Drawer>
   )
 }
 
@@ -488,15 +731,40 @@ function EmptyPanel({ message }: { message: string }) {
   )
 }
 
-function Timestamp({ value }: { value: string }) {
+function Timestamp({
+  value,
+  detailed = false,
+}: {
+  value: string
+  detailed?: boolean
+}) {
   return (
     <Typography
       variant="caption"
       color="text.secondary"
       sx={{ flexShrink: 0 }}
     >
-      {new Date(value).toLocaleTimeString()}
+      {detailed
+        ? new Date(value).toLocaleString()
+        : new Date(value).toLocaleTimeString()}
     </Typography>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
   )
 }
 

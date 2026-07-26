@@ -259,6 +259,13 @@ authentication, camera-management, connection-test, or health-monitor changes;
 the browser then reloads authoritative data. A 30-second REST poll remains as a
 fallback.
 
+The authenticated application uses a fixed left administration sidebar on
+desktop and a solid mobile header with an off-canvas menu. Operational list
+cards show at most five rows; their View details/View all actions open a
+right-side drawer with the complete result returned by the command-center API.
+Camera and camera-group management remain together in one Administrator
+workspace.
+
 The dashboard uses these measurable definitions:
 
 - active users are distinct, enabled, unrevoked sessions seen in the last five
