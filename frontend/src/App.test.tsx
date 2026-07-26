@@ -342,6 +342,84 @@ describe('authentication and authorization UI', () => {
     )
   })
 
+  it('filters, inspects, and closes an active event', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    const openEvent = {
+      id: 'event-storage-full',
+      type: 'StorageFull',
+      timestamp: '2026-07-26T12:00:00Z',
+      cameraId: null,
+      cameraName: null,
+      severity: 'Critical',
+      description: 'Recording storage reached its critical threshold.',
+      status: 'Open',
+      isActiveAlarm: true,
+      isIncident: true,
+    }
+    const closedEvent = {
+      ...openEvent,
+      status: 'Closed',
+      isActiveAlarm: false,
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([])
+      }
+      if (url.includes('/api/events?')) {
+        return Response.json({
+          generatedAt: '2026-07-26T12:00:00Z',
+          matchingCount: 1,
+          activeAlarmCount: options ? 0 : 1,
+          incidentCount: 1,
+          items: [openEvent],
+        })
+      }
+      if (
+        url.endsWith('/api/events/event-storage-full/close')
+        && options?.method === 'POST'
+      ) {
+        return Response.json(closedEvent)
+      }
+      if (url.endsWith('/api/events/event-storage-full')) {
+        return Response.json(openEvent)
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/events')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Events', level: 2 }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Live event panel')).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /events alarms and incidents/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: /storage full.*recording storage reached/i,
+      }),
+    )
+    expect(await screen.findByText('Event detail')).toBeInTheDocument()
+    expect(screen.getByText('Active alarm and incident')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close event' }))
+    expect(
+      await screen.findByText(/event closed.*no longer an active alarm/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Close event' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('provides recording playback controls and clickable keyframes', async () => {
     sessionStorage.setItem(
       'vms-auth-session',

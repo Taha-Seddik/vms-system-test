@@ -12,7 +12,7 @@ current step has been reviewed and explicitly approved.
 | 5. Multi-camera live monitoring | Completed and verified | 1/4/9/16 HLS wall, assignment enforcement, status/REC overlays, fullscreen, zoom, snapshot, frontend tests, real stream verification, HTML guide |
 | 6. Real recording workflows | Completed and verified | Manual/continuous/event FFmpeg capture, playable FFprobe-validated MP4s, persisted lifecycle/failures, 25 backend tests, live verification, HTML guide |
 | 7. Playback and keyframes | Completed and verified | Protected MP4 playback/download, recording filters, timeline controls, snapshots, FFmpeg JPEGs every 30 seconds, clickable keyframe seeking, 28 backend tests, 7 frontend tests, live verifier, HTML guide |
-| 8. Events, alarms, and incidents | Not started | — |
+| 8. Events, alarms, and incidents | Completed and verified | Required event types/fields, filtering, details, close lifecycle, automatic Storage Full monitoring, alarm/incident rules, SignalR updates, 34 backend tests, 8 frontend tests, live verifier, HTML guide |
 | 9. Users, search, and audit logs | Not started | — |
 | 10. Final integration and documentation | Not started | — |
 
@@ -197,3 +197,30 @@ current step has been reviewed and explicitly approved.
   MP4 range/download responses, and JPEG keyframe files.
 - `docs/steps/step-07-playback-keyframes.html` explains requirements, playback
   flow, security, keyframe generation, code, proof, and the Step 8 handoff.
+
+## Step 8 acceptance evidence
+
+- Camera Offline, Motion Detected, Recording Started, Recording Stopped,
+  Storage Full, Camera Reconnected, User Login, and User Logout are supported.
+  Recording Failure remains as an assessment-required operational extension.
+- Every API event includes timestamp, camera identity or explicit system-wide
+  context, severity, description, and Open/Closed status.
+- Administrators and Operators can filter by date, camera, event type,
+  severity, and status, inspect complete details, and close Open events.
+  Viewers receive `403` for both reads and close operations.
+- An active alarm has one exact rule: Open plus Warning or Critical severity.
+  Incidents reuse operational events and exclude only login/logout activity.
+- The storage monitor evaluates real recording-volume health every 30 seconds,
+  creates one Open Critical Storage Full event at the critical threshold, and
+  closes it after recovery. A focused test verified both transitions.
+- The Events page receives SignalR invalidations and reloads authoritative REST
+  data, with the same 30-second polling fallback as the command center.
+- `dotnet test Vms.slnx --no-restore`: 34 passed. Frontend lint, 8 tests, and
+  production build passed.
+- `scripts/verify-events.ps1` passed against the Docker stack. It verified all
+  eight required event types/fields, filters, details, command-center alarm and
+  incident consistency, close persistence, and a real `event-closed` SignalR
+  message, then removed all temporary events.
+- `docs/steps/step-08-events-alarms-incidents.html` explains requirements,
+  classification rules, runtime flows, code, proof, limitations, and the gated
+  Step 9 handoff.

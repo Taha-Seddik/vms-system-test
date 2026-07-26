@@ -200,6 +200,17 @@ It verifies playback role boundaries, HTTP range support, protected MP4 media,
 safe downloads, camera/type/status filters, invalid-date validation, and real
 decodable JPEG keyframes at 0 and 30 seconds.
 
+Verify Step 8 events, alarms, incidents, and real-time closing:
+
+```powershell
+.\scripts\verify-events.ps1
+```
+
+The script checks Viewer denial, invalid dates, all eight assessment event
+types and required fields, combined filters, details, alarm/incident
+classification, the close lifecycle, command-center consistency, a real
+SignalR update, and automatic cleanup of temporary records.
+
 Local source checks:
 
 ```powershell
@@ -369,6 +380,29 @@ Selecting a thumbnail seeks the player directly to its stored timestamp.
 | `GET /api/recordings/{id}/download` | Administrator, Operator | Protected MP4 attachment |
 | `GET /api/recordings/{id}/keyframes/{keyframeId}` | Administrator, Operator | Protected JPEG preview |
 
+## Step 8 events, alarms, and incidents
+
+Administrators and Operators can open <http://localhost:3000/events> to browse
+the live event panel. Filters cover date, camera, event type, severity, and
+Open/Closed status. Selecting an event shows its complete assessment fields;
+an Open event can be closed from the details drawer.
+
+An active alarm is exactly an Open Warning or Critical event. An incident is
+any operational event other than User Login or User Logout, so incidents reuse
+the event lifecycle instead of duplicating records. SignalR invalidations
+refresh both Events and Command Center screens, with a 30-second polling
+fallback.
+
+The required Storage Full event is generated automatically when the real
+recording-volume status reaches Critical. The 30-second monitor creates only
+one open event and closes it when capacity recovers.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/events` | Administrator, Operator | Filter events and return event/alarm/incident counts |
+| `GET /api/events/{id}` | Administrator, Operator | Read one event with complete fields and classifications |
+| `POST /api/events/{id}/close` | Administrator, Operator | Persist Closed status and publish a SignalR update |
+
 ## Repository layout
 
 ```text
@@ -393,6 +427,7 @@ scripts/
   verify-command-center.ps1 End-to-end Step 4 dashboard/SignalR verification
   verify-live-recording.ps1 End-to-end Steps 5/6 access and media verification
   verify-playback.ps1      End-to-end Step 7 playback/keyframe verification
+  verify-events.ps1        End-to-end Step 8 event/alarm verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -430,6 +465,9 @@ The Step 6 guide is:
 The Step 7 guide is:
 [`docs/steps/step-07-playback-keyframes.html`](docs/steps/step-07-playback-keyframes.html).
 
+The Step 8 guide is:
+[`docs/steps/step-08-events-alarms-incidents.html`](docs/steps/step-08-events-alarms-incidents.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -442,7 +480,6 @@ color treatment.
 
 ## Scope
 
-The full event/alarm lifecycle, user administration, global search, and
-audit-log management remain gated by the approved plan. The raw local MediaMTX
-HLS port is not yet protected; media authorization hardening is scheduled for
-Step 10.
+User administration, global search, and full audit-log management remain gated
+by the approved plan. The raw local MediaMTX HLS port is not yet protected;
+media authorization hardening is scheduled for Step 10.

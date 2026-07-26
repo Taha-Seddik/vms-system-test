@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Step 8 VMS events, alarms, and incidents implementation guide.">
+    <title>Step 8 - Events, alarms, and incidents</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 08 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#model">Event model</a></li>
+          <li><a href="#flow">How the flow works</a></li>
+          <li><a href="#classification">Alarms and incidents</a></li>
+          <li><a href="#storage">Storage monitoring</a></li>
+          <li><a href="#layers">Backend layers</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#understand">What to understand</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 08
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Events, alarms, and incidents</h1>
+          <p class="lede">
+            Step 8 turns records created by authentication, camera monitoring,
+            recording, motion, and storage monitoring into one operational
+            workspace. Operators can filter history, inspect every required
+            field, close an event, and see updates without refreshing.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Access:</strong> Administrator + Operator</span>
+            <span><strong>Updates:</strong> SignalR + 30-second fallback</span>
+            <span><strong>Lifecycle:</strong> Open &rarr; Closed</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The PDF requires Camera Offline, Motion Detected, Recording
+            Started, Recording Stopped, Storage Full, Camera Reconnected, User
+            Login, and User Logout. Each event needs a timestamp, camera,
+            severity, description, and Open/Closed status. The command center
+            also needs a live event panel, active alarms, and recent incidents.
+          </p>
+          <div class="callout">
+            <strong>Assessment interpretation:</strong> an incident is an
+            operational event, so this project does not duplicate the same data
+            in a separate incident subsystem. Authentication events remain user
+            activity; every other event type is an incident.
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <div class="grid three">
+            <article class="card">
+              <h3>Investigate</h3>
+              <p>The Events page filters the newest records by date, camera, type, severity, and status.</p>
+            </article>
+            <article class="card">
+              <h3>Respond</h3>
+              <p>Selecting a row opens complete details. Closing an Open event removes it from active alarms.</p>
+            </article>
+            <article class="card">
+              <h3>Stay current</h3>
+              <p>SignalR triggers a REST refresh. A 30-second poll remains available if live transport fails.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="model">
+          <h2>3. One event model</h2>
+          <p>
+            Every producer writes the existing <code>SystemEvent</code> entity.
+            Step 8 adds <code>StorageFull</code> and exposes two calculated
+            classifications: <code>isActiveAlarm</code> and
+            <code>isIncident</code>.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Field</th><th>Meaning</th><th>Example</th></tr></thead>
+              <tbody>
+                <tr><td>Timestamp</td><td>UTC occurrence time</td><td>2026-07-26T14:20:00Z</td></tr>
+                <tr><td>Camera</td><td>Related camera, or System-wide</td><td>Entrance</td></tr>
+                <tr><td>Severity</td><td>Information, Warning, or Critical</td><td>Critical</td></tr>
+                <tr><td>Description</td><td>Human-readable explanation</td><td>Storage reached critical capacity.</td></tr>
+                <tr><td>Status</td><td>Operator lifecycle</td><td>Open or Closed</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <code>RecordingFailure</code> remains as an extra event type because
+            recording failures are explicitly required elsewhere in the PDF.
+          </p>
+        </section>
+
+        <section class="section" id="flow">
+          <h2>4. How the flow works</h2>
+          <div class="flow">
+            <div class="flow-step"><span>1</span><div><h3>A real subsystem writes an event</h3><p>A camera probe fails, a user signs in, motion is simulated, FFmpeg changes state, or disk usage becomes critical.</p></div></div>
+            <div class="flow-step"><span>2</span><div><h3>PostgreSQL is authoritative</h3><p>The event is persisted with its type, UTC time, optional camera, severity, description, and status.</p></div></div>
+            <div class="flow-step"><span>3</span><div><h3>SignalR announces a change</h3><p>The small notification tells connected screens to reload authoritative REST data.</p></div></div>
+            <div class="flow-step"><span>4</span><div><h3>The operator responds</h3><p>Filters narrow history, details explain the record, and Close persists status and publishes another update.</p></div></div>
+          </div>
+        </section>
+
+        <section class="section" id="classification">
+          <h2>5. Alarm and incident rules</h2>
+          <div class="grid two">
+            <article class="card">
+              <h3>Active alarm</h3>
+              <p>An event is active only when status is Open and severity is Warning or Critical. Closing it makes this false immediately.</p>
+            </article>
+            <article class="card">
+              <h3>Incident</h3>
+              <p>Every event except User Login and User Logout is operational. Login/logout stay classified as user activity.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="storage">
+          <h2>6. Storage Full is automatic</h2>
+          <p>
+            A background monitor checks real recording-volume metrics every
+            configurable 30 seconds. Critical usage creates one Open Critical
+            Storage Full event; repeated checks cannot duplicate it. Recovery
+            to Healthy or Warning closes the open storage event.
+          </p>
+          <div class="callout">
+            The demo disk is normally healthy, so critical and recovery
+            transitions are verified with a controlled metrics provider in the
+            integration tests. Runtime monitoring reads the mounted filesystem.
+          </div>
+        </section>
+
+        <section class="section" id="layers">
+          <h2>7. Backend layers</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>
+              <tbody>
+                <tr><td>Controllers</td><td>Authorization, date validation, HTTP results.</td></tr>
+                <tr><td>Services</td><td>Filters, classifications, close lifecycle, storage monitoring, SignalR publishing.</td></tr>
+                <tr><td>Models</td><td>Validated query and response contracts.</td></tr>
+                <tr><td>Domain</td><td>Persistent entity and type/severity/status enums.</td></tr>
+                <tr><td>Extensions</td><td>Dependency registration and hosted monitor composition.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important code</h2>
+          <h3>Event API boundary</h3>
+          <pre><code>[Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
+[Route("api/events")]
+public sealed class EventsController(EventService events) : ControllerBase
+{
+    [HttpGet]
+    public async Task&lt;ActionResult&lt;EventSearchResponse&gt;&gt; Search(...);
+
+    [HttpGet("{id:guid}")]
+    public async Task&lt;ActionResult&lt;EventResponse&gt;&gt; Get(...);
+
+    [HttpPost("{id:guid}/close")]
+    public async Task&lt;ActionResult&lt;EventResponse&gt;&gt; Close(...);
+}</code></pre>
+          <h3>Measurable alarm rule</h3>
+          <pre><code>item.Status == EventStatus.Open
+    &amp;&amp; (item.Severity == EventSeverity.Warning
+        || item.Severity == EventSeverity.Critical)</code></pre>
+          <h3>Frontend refresh strategy</h3>
+          <pre><code>connectCommandCenter({
+  accessToken,
+  onChanged: refresh,
+  onStatusChanged: setRealtimeStatus,
+})
+
+window.setInterval(refresh, 30_000)</code></pre>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /api/events</code></td><td>Filter history and return counts.</td></tr>
+                <tr><td><code>GET /api/events/{id}</code></td><td>Load complete event details.</td></tr>
+                <tr><td><code>POST /api/events/{id}/close</code></td><td>Persist Closed and publish an update.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <ul class="check-list">
+            <li>34 backend tests passed, including filters, details, Viewer denial, validation, close idempotency, and storage transitions.</li>
+            <li>8 frontend interaction tests passed, including event details and closing.</li>
+            <li>Frontend lint and the TypeScript/Vite production build passed.</li>
+            <li>The live verifier checked all eight required types and every required field, then removed its temporary records.</li>
+            <li>The same critical record appeared in active alarms and recent incidents.</li>
+            <li>A real SignalR client received an <code>event-closed</code> update.</li>
+          </ul>
+          <pre><code>dotnet test Vms.slnx --no-restore
+
+Push-Location frontend
+npm run lint
+npm test -- --run
+npm run build
+Pop-Location
+
+.\scripts\verify-events.ps1</code></pre>
+        </section>
+
+        <section class="section" id="understand">
+          <h2>10. What you should understand</h2>
+          <div class="grid two">
+            <article class="card"><h3>SignalR is an invalidation signal</h3><p>It says “something changed”; REST and PostgreSQL remain the source of truth.</p></article>
+            <article class="card"><h3>Closing is acknowledgement</h3><p>It changes event status; it does not itself repair a camera or storage device.</p></article>
+            <article class="card"><h3>System-wide is valid</h3><p>Login, logout, and storage events do not belong to one camera, so the UI says System-wide.</p></article>
+            <article class="card"><h3>The API enforces access</h3><p>Navigation hiding is convenience. Server policy prevents Viewers from reading or closing events.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>11. Boundaries and next step</h2>
+          <p>
+            The page returns at most 200 newest matching records. Cursor
+            pagination and retention are production concerns. The required
+            close status is stored; who closed it becomes audit data in Step 9.
+          </p>
+          <div class="next-step">
+            <span>Next gate</span>
+            <strong>Step 9 &mdash; Users, search, and audit logs</strong>
+            <p>No Step 9 implementation begins until this step is reviewed.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

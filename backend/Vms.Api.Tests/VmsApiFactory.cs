@@ -50,7 +50,9 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<FakeCameraProbe>();
             services.AddSingleton<ICameraProbe>(
                 provider => provider.GetRequiredService<FakeCameraProbe>());
-            services.AddSingleton<IStorageMetricsProvider, FakeStorageMetricsProvider>();
+            services.AddSingleton<FakeStorageMetricsProvider>();
+            services.AddSingleton<IStorageMetricsProvider>(
+                provider => provider.GetRequiredService<FakeStorageMetricsProvider>());
             services.AddSingleton<FakeRecordingProcessRunner>();
             services.AddSingleton<IRecordingProcessRunner>(
                 provider => provider.GetRequiredService<FakeRecordingProcessRunner>());
@@ -108,9 +110,14 @@ public sealed class FakeCameraProbe : ICameraProbe
 
 public sealed class FakeStorageMetricsProvider : IStorageMetricsProvider
 {
+    public StorageHealthResponse NextResponse { get; set; } = Healthy();
+
     public Task<StorageHealthResponse> GetAsync(
         CancellationToken cancellationToken) =>
-        Task.FromResult(new StorageHealthResponse(
+        Task.FromResult(NextResponse);
+
+    public static StorageHealthResponse Healthy() =>
+        new(
             "/test/recordings",
             StorageHealthStatus.Healthy,
             1_000_000,
@@ -118,7 +125,7 @@ public sealed class FakeStorageMetricsProvider : IStorageMetricsProvider
             400_000,
             25_000,
             40,
-            null));
+            null);
 }
 
 public sealed class FakeRecordingProcessRunner : IRecordingProcessRunner

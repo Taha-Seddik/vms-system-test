@@ -5,6 +5,7 @@ import { ActivityPage } from './pages/ActivityPage'
 import { CamerasPage } from './pages/CamerasPage'
 import { CameraManagementPage } from './pages/CameraManagementPage'
 import { CommandCenterPage } from './pages/CommandCenterPage'
+import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaybackPage } from './pages/PlaybackPage'
 import { useAuth } from './auth/AuthContext'
@@ -35,6 +36,7 @@ function App() {
             }
           >
             <Route path="command-center" element={<CommandCenterPage />} />
+            <Route path="events" element={<EventsPage />} />
             <Route path="playback" element={<PlaybackPage />} />
           </Route>
           <Route

@@ -13,6 +13,7 @@ export type SystemEventType =
   | 'MotionDetected'
   | 'RecordingStarted'
   | 'RecordingStopped'
+  | 'StorageFull'
   | 'RecordingFailure'
 
 export interface DashboardMetrics {

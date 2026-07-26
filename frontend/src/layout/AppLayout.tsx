@@ -23,6 +23,7 @@ const drawerWidth = 280
 type NavigationIcon =
   | 'command'
   | 'cameras'
+  | 'events'
   | 'playback'
   | 'manage'
   | 'activity'
@@ -59,6 +60,12 @@ export function AppLayout() {
           description: 'Multi-camera wall',
           to: '/cameras',
           icon: 'cameras',
+        },
+        {
+          label: 'Events',
+          description: 'Alarms and incidents',
+          to: '/events',
+          icon: 'events',
         },
         {
           label: 'Playback',
@@ -251,6 +258,12 @@ function NavigationGlyph({ name }: { name: NavigationIcon }) {
       <>
         <rect x="3" y="5" width="18" height="14" rx="2" />
         <path d="m10 9 5 3-5 3z" />
+      </>
+    ),
+    events: (
+      <>
+        <path d="M12 3 3.5 19h17z" />
+        <path d="M12 9v4M12 16h.01" />
       </>
     ),
     manage: (

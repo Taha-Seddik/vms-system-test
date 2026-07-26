@@ -12,6 +12,7 @@ public enum SystemEventType
     MotionDetected,
     RecordingStarted,
     RecordingStopped,
+    StorageFull,
     RecordingFailure
 }
 

@@ -94,4 +94,7 @@ public sealed class RecordingStorageOptions
 
     [Range(2, 100)]
     public double CriticalPercent { get; set; } = 90;
+
+    [Range(5, 3600)]
+    public int MonitorIntervalSeconds { get; set; } = 30;
 }

@@ -70,8 +70,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CameraHealthService>();
         services.AddScoped<CameraManagementService>();
         services.AddScoped<CommandCenterService>();
+        services.AddScoped<EventService>();
         services.AddScoped<RecordingService>();
         services.AddScoped<SessionValidationService>();
+        services.AddScoped<StorageEventService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<ApplicationUptime>();
         services.AddSingleton<CameraHealthCheckCoordinator>();
@@ -89,6 +91,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService(provider =>
             provider.GetRequiredService<RecordingCoordinator>());
         services.AddHostedService<RecordingKeyframeBackfillService>();
+        services.AddHostedService<StorageHealthMonitor>();
 
         return services;
     }
