@@ -56,6 +56,15 @@ function New-AuthHeaders {
     return @{ Authorization = "Bearer $AccessToken" }
 }
 
+function Invoke-Logout {
+    param([string]$AccessToken)
+
+    Invoke-RestMethod `
+        -Uri "$ApiBaseUrl/api/auth/logout" `
+        -Method Post `
+        -Headers (New-AuthHeaders $AccessToken) | Out-Null
+}
+
 function Get-StatusCode {
     param(
         [string]$Path,
@@ -80,13 +89,18 @@ function Get-StatusCode {
     }
 }
 
-$administrator = Invoke-Login "admin" "Admin123!"
-$operator = Invoke-Login "operator" "Operator123!"
-$viewer = Invoke-Login "viewer" "Viewer123!"
-$operatorHeaders = New-AuthHeaders $operator.accessToken
-$viewerHeaders = New-AuthHeaders $viewer.accessToken
+$scriptSessions = @()
+try {
+    $administrator = Invoke-Login "admin" "Admin123!"
+    $scriptSessions += $administrator
+    $operator = Invoke-Login "operator" "Operator123!"
+    $scriptSessions += $operator
+    $viewer = Invoke-Login "viewer" "Viewer123!"
+    $scriptSessions += $viewer
+    $operatorHeaders = New-AuthHeaders $operator.accessToken
+    $viewerHeaders = New-AuthHeaders $viewer.accessToken
 
-$viewerStatus = Get-StatusCode `
+    $viewerStatus = Get-StatusCode `
     -Path "/api/command-center" `
     -Headers $viewerHeaders
 Assert-Equal $viewerStatus 403 "Viewer is excluded from the system-wide command center."
@@ -187,9 +201,20 @@ WHERE "Id" = '$eventId';
 Write-Pass "Temporary command-center event was cleaned up."
 
 $env:VMS_API_BASE_URL = $ApiBaseUrl
-node .\frontend\scripts\verify-realtime.mjs
-if ($LASTEXITCODE -ne 0) {
-    throw "SignalR realtime smoke test failed."
+    node .\frontend\scripts\verify-realtime.mjs
+    if ($LASTEXITCODE -ne 0) {
+        throw "SignalR realtime smoke test failed."
+    }
+}
+finally {
+    foreach ($scriptSession in $scriptSessions) {
+        try {
+            Invoke-Logout $scriptSession.accessToken
+        }
+        catch {
+            Write-Warning "A verification session could not be logged out."
+        }
+    }
 }
 
 Write-Host "Step 4 command-center verification completed successfully." -ForegroundColor Cyan

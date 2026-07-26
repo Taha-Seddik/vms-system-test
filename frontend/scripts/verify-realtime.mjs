@@ -71,4 +71,8 @@ try {
     connection.off('DashboardChanged', notificationHandler)
   }
   await connection.stop()
+  await fetch(`${apiBaseUrl}/api/auth/logout`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  })
 }
