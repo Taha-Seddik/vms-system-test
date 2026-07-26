@@ -20,7 +20,12 @@ import { useAuth } from '../auth/AuthContext'
 
 const drawerWidth = 280
 
-type NavigationIcon = 'command' | 'cameras' | 'manage' | 'activity'
+type NavigationIcon =
+  | 'command'
+  | 'cameras'
+  | 'playback'
+  | 'manage'
+  | 'activity'
 
 interface NavigationItem {
   label: string
@@ -54,6 +59,12 @@ export function AppLayout() {
           description: 'Multi-camera wall',
           to: '/cameras',
           icon: 'cameras',
+        },
+        {
+          label: 'Playback',
+          description: 'Recordings and keyframes',
+          to: '/playback',
+          icon: 'playback',
         },
       ]
 
@@ -234,6 +245,12 @@ function NavigationGlyph({ name }: { name: NavigationIcon }) {
         <rect x="3" y="6" width="14" height="12" rx="2" />
         <path d="m17 10 4-2v8l-4-2z" />
         <circle cx="10" cy="12" r="2.5" />
+      </>
+    ),
+    playback: (
+      <>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m10 9 5 3-5 3z" />
       </>
     ),
     manage: (

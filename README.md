@@ -3,12 +3,12 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Steps 1 through 6**: the application/media
+The current repository contains **Steps 1 through 7**: the application/media
 foundation, Identity-based authentication and role authorization, Viewer
 camera assignments, persistent camera management, FFprobe connection testing,
 automatic health monitoring, heartbeats, connectivity events, and a real-time
 operational command center, multi-camera HLS monitoring, and real FFmpeg
-recording workflows.
+recording workflows with protected playback and keyframe navigation.
 
 ## Architecture
 
@@ -189,6 +189,17 @@ motion-event recording, multiple continuous segments, actual H.264 MP4 media
 through FFprobe, a real unavailable-source failure, command-center failure
 visibility, and camera-source recovery.
 
+Verify Step 7 playback, downloads, seeking, filters, and keyframes:
+
+```powershell
+.\scripts\verify-playback.ps1
+```
+
+The script reuses a completed recording longer than 30 seconds or creates one.
+It verifies playback role boundaries, HTTP range support, protected MP4 media,
+safe downloads, camera/type/status filters, invalid-date validation, and real
+decodable JPEG keyframes at 0 and 30 seconds.
+
 Local source checks:
 
 ```powershell
@@ -335,6 +346,29 @@ recording-failure events and appear on the command center.
 | `POST /api/cameras/{id}/motion/simulate` | Administrator, Operator | Persist motion event and start real event capture |
 | `POST /api/cameras/{id}/recordings/stop` | Administrator, Operator | Gracefully finalize the active capture |
 
+## Step 7 playback and keyframes
+
+Administrators and Operators can open
+<http://localhost:3000/playback> to browse completed recordings. Filters cover
+camera, manual/continuous/event mode, and start-date range. The selected MP4 is
+loaded through an authenticated API request; JWTs are not placed in media URLs.
+
+Playback includes the native video controls plus an explicit timeline,
+play/pause, ten-second backward/forward seeking, 0.5x/1x/1.5x/2x/4x speed
+control, current-frame PNG snapshot, and original MP4 download.
+
+FFmpeg generates JPEG previews at zero seconds and every configurable 30
+seconds afterward. Existing completed recordings are backfilled automatically.
+Selecting a thumbnail seeks the player directly to its stored timestamp.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/recordings` | Administrator, Operator | Filter by camera, date, mode, state, and result limit |
+| `GET /api/recordings/{id}` | Administrator, Operator | Recording detail and ordered keyframe timeline |
+| `GET /api/recordings/{id}/media` | Administrator, Operator | Protected range-enabled MP4 response |
+| `GET /api/recordings/{id}/download` | Administrator, Operator | Protected MP4 attachment |
+| `GET /api/recordings/{id}/keyframes/{keyframeId}` | Administrator, Operator | Protected JPEG preview |
+
 ## Repository layout
 
 ```text
@@ -358,6 +392,7 @@ scripts/
   verify-camera-health.ps1 End-to-end Step 3 camera/health verification
   verify-command-center.ps1 End-to-end Step 4 dashboard/SignalR verification
   verify-live-recording.ps1 End-to-end Steps 5/6 access and media verification
+  verify-playback.ps1      End-to-end Step 7 playback/keyframe verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -392,6 +427,9 @@ The Step 5 guide is:
 The Step 6 guide is:
 [`docs/steps/step-06-real-recording-workflows.html`](docs/steps/step-06-real-recording-workflows.html).
 
+The Step 7 guide is:
+[`docs/steps/step-07-playback-keyframes.html`](docs/steps/step-07-playback-keyframes.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -404,7 +442,7 @@ color treatment.
 
 ## Scope
 
-Recording playback/keyframes, the full event/alarm lifecycle, user
-administration, search, and audit-log management remain gated by the approved
-plan. The raw local MediaMTX HLS port is not yet protected; media authorization
-hardening is scheduled for Step 10.
+The full event/alarm lifecycle, user administration, global search, and
+audit-log management remain gated by the approved plan. The raw local MediaMTX
+HLS port is not yet protected; media authorization hardening is scheduled for
+Step 10.

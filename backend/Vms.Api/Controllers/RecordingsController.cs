@@ -10,14 +10,103 @@ namespace Vms.Api.Controllers;
 [Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
 [Route("api")]
 public sealed class RecordingsController(
-    RecordingService recordings) : ControllerBase
+    RecordingService recordings,
+    RecordingKeyframeService keyframes,
+    RecordingStoragePathResolver paths) : ControllerBase
 {
     [HttpGet("recordings")]
     public async Task<ActionResult<IReadOnlyList<RecordingResponse>>> GetRecent(
         [FromQuery] string? cameraId,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] Vms.Api.Domain.RecordingMode? mode,
+        [FromQuery] Vms.Api.Domain.RecordingState? state,
         [FromQuery] int take = 25,
-        CancellationToken cancellationToken = default) =>
-        Ok(await recordings.GetRecentAsync(cameraId, take, cancellationToken));
+        CancellationToken cancellationToken = default)
+    {
+        if (from > to)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                detail: "The from date must be before the to date.");
+        }
+
+        return Ok(await recordings.GetRecentAsync(
+            cameraId,
+            from,
+            to,
+            mode,
+            state,
+            take,
+            cancellationToken));
+    }
+
+    [HttpGet("recordings/{recordingId:guid}")]
+    public async Task<ActionResult<RecordingDetailsResponse>> GetDetails(
+        Guid recordingId,
+        CancellationToken cancellationToken)
+    {
+        var result = await recordings.GetDetailsAsync(
+            recordingId,
+            keyframes,
+            cancellationToken);
+        return result is null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("recordings/{recordingId:guid}/media")]
+    public async Task<IActionResult> GetMedia(
+        Guid recordingId,
+        CancellationToken cancellationToken)
+    {
+        var file = await recordings.GetRecordingFileAsync(
+            recordingId,
+            paths,
+            download: false,
+            cancellationToken);
+        return file is null
+            ? NotFound()
+            : PhysicalFile(
+                file.FullPath,
+                file.ContentType,
+                enableRangeProcessing: true);
+    }
+
+    [HttpGet("recordings/{recordingId:guid}/download")]
+    public async Task<IActionResult> Download(
+        Guid recordingId,
+        CancellationToken cancellationToken)
+    {
+        var file = await recordings.GetRecordingFileAsync(
+            recordingId,
+            paths,
+            download: true,
+            cancellationToken);
+        return file is null
+            ? NotFound()
+            : PhysicalFile(
+                file.FullPath,
+                file.ContentType,
+                file.DownloadName,
+                enableRangeProcessing: true);
+    }
+
+    [HttpGet(
+        "recordings/{recordingId:guid}/keyframes/{keyframeId:guid}")]
+    public async Task<IActionResult> GetKeyframe(
+        Guid recordingId,
+        Guid keyframeId,
+        CancellationToken cancellationToken)
+    {
+        var file = await recordings.GetKeyframeFileAsync(
+            recordingId,
+            keyframeId,
+            keyframes,
+            paths,
+            cancellationToken);
+        return file is null
+            ? NotFound()
+            : PhysicalFile(file.FullPath, file.ContentType);
+    }
 
     [HttpPost("cameras/{cameraId}/recordings/manual/start")]
     public async Task<ActionResult<RecordingCommandResponse>> StartManual(

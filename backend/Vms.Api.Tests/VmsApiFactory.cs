@@ -18,6 +18,8 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
         Path.GetTempPath(),
         $"vms-recording-tests-{Guid.NewGuid():N}");
 
+    public string RecordingPath => _recordingPath;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -42,6 +44,7 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IStorageMetricsProvider>();
             services.RemoveAll<IRecordingProcessRunner>();
             services.RemoveAll<IRecordingMediaInspector>();
+            services.RemoveAll<IRecordingKeyframeGenerator>();
             services.AddDbContext<VmsDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
             services.AddSingleton<FakeCameraProbe>();
@@ -52,6 +55,9 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IRecordingProcessRunner>(
                 provider => provider.GetRequiredService<FakeRecordingProcessRunner>());
             services.AddSingleton<IRecordingMediaInspector, FakeRecordingMediaInspector>();
+            services.AddSingleton<FakeRecordingKeyframeGenerator>();
+            services.AddSingleton<IRecordingKeyframeGenerator>(
+                provider => provider.GetRequiredService<FakeRecordingKeyframeGenerator>());
         });
     }
 
@@ -176,4 +182,27 @@ public sealed class FakeRecordingMediaInspector : IRecordingMediaInspector
             File.Exists(filePath)
                 ? new RecordedMediaInfo(3, new FileInfo(filePath).Length)
                 : null);
+}
+
+public sealed class FakeRecordingKeyframeGenerator(
+    RecordingStoragePathResolver paths) : IRecordingKeyframeGenerator
+{
+    public Task<IReadOnlyList<GeneratedRecordingKeyframe>> GenerateAsync(
+        Guid recordingId,
+        string recordingPath,
+        double durationSeconds,
+        CancellationToken cancellationToken)
+    {
+        var generated = new List<GeneratedRecordingKeyframe>();
+        for (var timestamp = 0; timestamp < durationSeconds; timestamp += 30)
+        {
+            var fileName = $"{timestamp:D6}.jpg";
+            var outputPath = paths.GetKeyframePath(recordingId, fileName);
+            File.WriteAllBytes(outputPath, [0xff, 0xd8, 0xff, 0xd9]);
+            generated.Add(new GeneratedRecordingKeyframe(timestamp, fileName));
+        }
+
+        return Task.FromResult<IReadOnlyList<GeneratedRecordingKeyframe>>(
+            generated);
+    }
 }

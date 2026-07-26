@@ -19,3 +19,13 @@ export interface RecordingCommand {
   message: string
   recording: Recording
 }
+
+export interface RecordingKeyframe {
+  id: string
+  timestampSeconds: number
+}
+
+export interface RecordingDetails {
+  recording: Recording
+  keyframes: RecordingKeyframe[]
+}

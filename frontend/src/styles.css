@@ -716,6 +716,104 @@ body {
   padding: 0 1.5rem 2rem;
 }
 
+.playback-filters {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.playback-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.recording-browser {
+  max-height: 760px;
+  overflow-y: auto;
+}
+
+.recording-browser-row {
+  justify-content: space-between !important;
+  gap: 12px;
+  padding: 11px 12px !important;
+  text-align: left;
+}
+
+.recording-browser-row > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.recording-browser-row strong,
+.recording-browser-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recording-player-card {
+  min-width: 0;
+}
+
+.playback-video {
+  display: block;
+  width: 100%;
+  max-height: 540px;
+  background: #07121c;
+  border-radius: 10px;
+}
+
+.playback-timeline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.playback-controls {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.keyframe-strip {
+  display: flex;
+  gap: 12px;
+  padding: 14px 2px 4px;
+  overflow-x: auto;
+}
+
+.keyframe-button {
+  display: grid !important;
+  flex: 0 0 170px;
+  padding: 0 !important;
+  overflow: hidden;
+  color: inherit !important;
+  background: #eef3f7 !important;
+  border: 1px solid #d7e0e8 !important;
+  border-radius: 9px !important;
+  text-align: left;
+}
+
+.keyframe-button img,
+.keyframe-placeholder {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  place-items: center;
+  object-fit: cover;
+  color: #647587;
+  background: #dfe7ed;
+  font-size: 12px;
+}
+
+.keyframe-button > span:last-child {
+  padding: 7px 9px;
+  font-weight: 800;
+}
+
 .route-loader,
 .content-loader {
   display: grid;
@@ -763,6 +861,14 @@ body {
   .live-wall-16,
   .recording-output-grid {
     grid-template-columns: 1fr;
+  }
+
+  .playback-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .recording-browser {
+    max-height: 320px;
   }
 }
 

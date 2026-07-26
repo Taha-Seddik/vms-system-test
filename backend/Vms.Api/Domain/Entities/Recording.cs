@@ -29,4 +29,6 @@ public sealed class Recording
     public Guid StartedByUserId { get; set; }
 
     public Guid? TriggerEventId { get; set; }
+
+    public ICollection<RecordingKeyframe> Keyframes { get; set; } = [];
 }

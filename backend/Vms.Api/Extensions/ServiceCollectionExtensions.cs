@@ -79,12 +79,16 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStorageMetricsProvider, FileSystemStorageMetricsProvider>();
         services.AddSingleton<ICameraProbe, FfprobeCameraProbe>();
         services.AddSingleton<IRecordingMediaInspector, FfprobeRecordingMediaInspector>();
+        services.AddSingleton<IRecordingKeyframeGenerator, FfmpegRecordingKeyframeGenerator>();
         services.AddSingleton<IRecordingProcessRunner, FfmpegRecordingProcessRunner>();
         services.AddSingleton<RecordingCoordinator>();
+        services.AddSingleton<RecordingKeyframeService>();
+        services.AddSingleton<RecordingStoragePathResolver>();
         services.AddSingleton<JwtTokenService>();
         services.AddHostedService<CameraHealthMonitor>();
         services.AddHostedService(provider =>
             provider.GetRequiredService<RecordingCoordinator>());
+        services.AddHostedService<RecordingKeyframeBackfillService>();
 
         return services;
     }

@@ -20,6 +20,14 @@ public sealed record RecordingCommandResponse(
     string Message,
     RecordingResponse Recording);
 
+public sealed record RecordingKeyframeResponse(
+    Guid Id,
+    int TimestampSeconds);
+
+public sealed record RecordingDetailsResponse(
+    RecordingResponse Recording,
+    IReadOnlyList<RecordingKeyframeResponse> Keyframes);
+
 public sealed class RecordingOptions
 {
     public const string SectionName = "Recording";
@@ -38,4 +46,7 @@ public sealed class RecordingOptions
 
     [Range(0, 30)]
     public int MinimumCaptureSeconds { get; set; } = 6;
+
+    [Range(30, 60)]
+    public int KeyframeIntervalSeconds { get; set; } = 30;
 }

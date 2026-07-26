@@ -11,7 +11,7 @@ current step has been reviewed and explicitly approved.
 | 4. Command center dashboard | Completed and verified | Aggregated operational snapshot, measurable metrics, recording-volume health, Administrator/Operator dashboard, SignalR invalidation with polling fallback, 20 backend tests, 5 frontend tests, live verification script, HTML guide |
 | 5. Multi-camera live monitoring | Completed and verified | 1/4/9/16 HLS wall, assignment enforcement, status/REC overlays, fullscreen, zoom, snapshot, frontend tests, real stream verification, HTML guide |
 | 6. Real recording workflows | Completed and verified | Manual/continuous/event FFmpeg capture, playable FFprobe-validated MP4s, persisted lifecycle/failures, 25 backend tests, live verification, HTML guide |
-| 7. Playback and keyframes | Not started | — |
+| 7. Playback and keyframes | Completed and verified | Protected MP4 playback/download, recording filters, timeline controls, snapshots, FFmpeg JPEGs every 30 seconds, clickable keyframe seeking, 28 backend tests, 7 frontend tests, live verifier, HTML guide |
 | 8. Events, alarms, and incidents | Not started | — |
 | 9. Users, search, and audit logs | Not started | — |
 | 10. Final integration and documentation | Not started | — |
@@ -166,3 +166,34 @@ current step has been reviewed and explicitly approved.
   unchanged after an API container restart.
 - `docs/steps/step-06-real-recording-workflows.html` explains modes, lifecycle,
   backend layers, process safety, proof, and the gated Step 7 handoff.
+
+## Step 7 acceptance evidence
+
+- Administrators and Operators can browse completed recordings; anonymous
+  users receive `401` and Viewers receive `403`.
+- Recording queries filter by camera, date range, mode, and lifecycle state.
+  Reversed date ranges return `400`.
+- MP4 media and downloads are served only through authenticated endpoints.
+  Media responses support HTTP byte ranges, and download names are generated
+  safely by the server.
+- The React workspace includes native playback plus an explicit timeline,
+  play/pause, ten-second back/forward seeking, 0.5x through 4x speed controls,
+  current-frame PNG snapshot, and MP4 download.
+- FFmpeg creates real JPEG thumbnails at 0 seconds and every configured 30
+  seconds. A verified long recording produced decodable previews at 0 and 30.
+- Clicking the 30-second thumbnail set the video current time to 30 seconds in
+  the frontend interaction test. The same test created a PNG snapshot, fetched
+  the MP4 download, and changed playback speed to 4x.
+- Existing completed recordings are backfilled by a bounded background service;
+  requesting details also guarantees missing keyframes synchronously.
+- All migrations created the keyframe schema in a temporary clean PostgreSQL
+  database, which was removed after verification.
+- Two real keyframe rows remained stable across an API container restart.
+- The recording and keyframe paths are resolved inside the configured storage
+  root from server-generated names; client filesystem paths are never accepted.
+- `dotnet test Vms.slnx --no-restore`: 28 passed. Frontend lint, 7 tests, and
+  production build passed.
+- `scripts/verify-playback.ps1` passed against real PostgreSQL, FFmpeg, FFprobe,
+  MP4 range/download responses, and JPEG keyframe files.
+- `docs/steps/step-07-playback-keyframes.html` explains requirements, playback
+  flow, security, keyframe generation, code, proof, and the Step 8 handoff.

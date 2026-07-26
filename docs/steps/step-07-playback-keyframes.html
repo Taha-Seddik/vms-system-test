@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step 7 implementation guide for secure recording playback, filters, snapshots, downloads, and FFmpeg keyframe timelines."
+    >
+    <title>Step 7 - Playback and keyframes</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 07 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#workflow">Playback workflow</a></li>
+          <li><a href="#keyframes">Keyframe generation</a></li>
+          <li><a href="#security">Media security</a></li>
+          <li><a href="#controls">Playback controls</a></li>
+          <li><a href="#layers">Backend layers</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 07
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Playback and intelligent keyframes</h1>
+          <p class="lede">
+            Step 7 turns the MP4 files from Step 6 into an authenticated
+            playback library. Operators can filter recordings, play and seek,
+            change speed, capture a frame, download the original file, and
+            jump through real FFmpeg-generated JPEG previews every 30 seconds.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Media:</strong> Protected MP4</span>
+            <span><strong>Timeline:</strong> 30-second JPEGs</span>
+            <span><strong>Access:</strong> Administrator + Operator</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The PDF requires browsing and replaying recordings with a timeline,
+            play/pause, seek, fast forward, speed control, snapshot, and
+            download. It separately requires thumbnail previews every 30–60
+            seconds that let an operator jump directly to a keyframe and move
+            quickly through long recordings.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Find</h3>
+              <p>Browse completed recordings and narrow them by camera, date, and recording/event mode.</p>
+            </article>
+            <article class="card">
+              <h3>Review</h3>
+              <p>Play, pause, seek, move ten seconds, change speed, and inspect the current time.</p>
+            </article>
+            <article class="card">
+              <h3>Navigate</h3>
+              <p>Use actual JPEG previews at 0, 30, 60 seconds and beyond as direct seek points.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>Administrator/Operator playback workspace with Viewer denial.</li>
+            <li>Recording filters for camera, start-date range, mode, state, and result limit.</li>
+            <li>Authenticated recording detail, MP4 media, download, and JPEG endpoints.</li>
+            <li>Range-enabled MP4 responses for standards-compatible seeking clients.</li>
+            <li>Native video controls plus an explicit VMS timeline and time display.</li>
+            <li>Play/pause, ten-second backward/forward, and 0.5x–4x playback speed.</li>
+            <li>Current decoded-frame PNG snapshot and original MP4 download.</li>
+            <li>Real FFmpeg JPEG thumbnails at zero and each 30-second interval.</li>
+            <li>Database-persisted keyframe timestamp and recording relationship.</li>
+            <li>Clicking a preview changes the video position to that exact timestamp.</li>
+            <li>Automatic background backfill for recordings created before Step 7.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="workflow">
+          <h2>3. Playback workflow</h2>
+          <div class="architecture" aria-label="Protected playback flow">
+            <div class="flow-row">
+              <div class="flow-node"><strong>Operator</strong><small>selects recording</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>JWT API request</strong><small>detail + MP4</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node accent"><strong>Protected storage</strong><small>GUID MP4</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>Browser Blob URL</strong><small>local video source</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>Video player</strong><small>seek + snapshot</small></div>
+            </div>
+          </div>
+          <ol class="numbered-list">
+            <li>The library requests only Completed recording metadata through the authenticated API.</li>
+            <li>Selecting a row requests its detail/timeline and MP4 using the Bearer token.</li>
+            <li>The browser converts the authenticated MP4 response into a temporary Blob URL.</li>
+            <li>The HTML video element provides decoding, native controls, timeline events, and current frames.</li>
+            <li>Changing selection revokes the old Blob URL so browser memory is released.</li>
+          </ol>
+        </section>
+
+        <section class="section" id="keyframes">
+          <h2>4. How keyframe generation works</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Recording duration</th><th>Generated timestamps</th><th>Reason</th></tr></thead>
+              <tbody>
+                <tr><td>8 seconds</td><td>0</td><td>Short recordings still receive an initial useful preview.</td></tr>
+                <tr><td>35 seconds</td><td>0, 30</td><td>One preview at the start and one after the configured interval.</td></tr>
+                <tr><td>95 seconds</td><td>0, 30, 60, 90</td><td>The same rule continues for long recordings.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout success">
+            <span class="callout-title">These are real images, not duplicated placeholders.</span>
+            <p>
+              FFmpeg opens the completed MP4 at each timestamp, decodes one
+              frame, scales it to 320 pixels wide, and writes a JPEG. FFprobe
+              verified the live 0-second and 30-second outputs as decodable
+              MJPEG images.
+            </p>
+          </div>
+          <p>
+            The configurable interval is constrained to the PDF’s allowed
+            30–60 second range and defaults to 30 seconds. A background service
+            backfills older completed recordings. Opening a detail page also
+            guarantees missing keyframes immediately.
+          </p>
+        </section>
+
+        <section class="section" id="security">
+          <h2>5. Media security and safe paths</h2>
+          <dl class="definition-list">
+            <dt>Role boundary</dt><dd>Every playback route requires Administrator or Operator; Viewers receive HTTP 403.</dd>
+            <dt>No JWT URL</dt><dd>The frontend fetches blobs with an Authorization header. Tokens are never appended to media or thumbnail URLs.</dd>
+            <dt>No client path</dt><dd>Clients send recording/keyframe GUIDs only. The server loads server-generated file names from PostgreSQL.</dd>
+            <dt>Root confinement</dt><dd>The path resolver rejects directory components, incorrect extensions, and paths outside the recording root.</dd>
+            <dt>Safe download</dt><dd>The attachment name is generated from persisted camera/time/mode values and invalid filename characters are replaced.</dd>
+            <dt>Playable only</dt><dd>Failed or still-running recordings cannot be served through the MP4 endpoint.</dd>
+          </dl>
+        </section>
+
+        <section class="section" id="controls">
+          <h2>6. Operator controls</h2>
+          <div class="grid two">
+            <article class="card">
+              <span class="card-number">Timeline</span>
+              <h3>Precise review</h3>
+              <p>Native controls and the explicit VMS slider both update the video current time. The display shows elapsed and total duration.</p>
+            </article>
+            <article class="card">
+              <span class="card-number">Fast navigation</span>
+              <h3>Back, forward, speed</h3>
+              <p>Move backward or forward ten seconds, or select 0.5x, 1x, 1.5x, 2x, or 4x playback.</p>
+            </article>
+            <article class="card">
+              <span class="card-number">Snapshot</span>
+              <h3>Capture evidence</h3>
+              <p>The current decoded frame is drawn into a canvas and downloaded as a timestamped PNG.</p>
+            </article>
+            <article class="card">
+              <span class="card-number">Download</span>
+              <h3>Keep the original</h3>
+              <p>The protected API returns the original validated MP4 as an attachment with a server-controlled filename.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="layers">
+          <h2>7. Backend layers and dependencies</h2>
+          <pre class="file-tree">Controllers/
+  RecordingsController.cs              browse/detail/media/download/JPEG routes
+Services/
+  RecordingService.cs                 filters and authorized file lookup
+  RecordingKeyframeService.cs         generation lock and metadata persistence
+  RecordingKeyframeBackfillService.cs older-recording background generation
+  FfmpegRecordingKeyframeGenerator.cs real JPEG extraction
+  RecordingStoragePathResolver.cs     storage-root confinement
+Models/
+  RecordingModels.cs                  detail and keyframe response contracts
+Domain/
+  Entities/RecordingKeyframe.cs       persisted timestamp and safe filename
+Data/
+  Migrations/*AddPlaybackKeyframes*   PostgreSQL schema</pre>
+          <div class="callout">
+            <span class="callout-title">No new host dependency</span>
+            <p>Step 7 reuses FFmpeg and FFprobe already installed inside the API Docker image. The existing one-command Compose startup remains sufficient.</p>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important code</h2>
+          <div class="code-block">
+            <div class="code-header"><strong>FfmpegRecordingKeyframeGenerator.cs</strong><span>timestamp sequence</span></div>
+            <pre><code>var timestamps = new List&lt;int&gt; { 0 };
+for (var timestamp = interval;
+     timestamp &lt; durationSeconds;
+     timestamp += interval)
+{
+    timestamps.Add(timestamp);
+}</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><strong>RecordingsController.cs</strong><span>protected range media</span></div>
+            <pre><code>[Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
+[HttpGet("recordings/{recordingId:guid}/media")]
+
+return PhysicalFile(
+    file.FullPath,
+    "video/mp4",
+    enableRangeProcessing: true);</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><strong>PlaybackPage.tsx</strong><span>click-to-seek keyframes</span></div>
+            <pre><code>&lt;Button
+  onClick={() =&gt; seek(keyframe.timestampSeconds)}
+  aria-label={`Seek to ${formatDuration(
+    keyframe.timestampSeconds,
+  )}`}
+&gt;
+  &lt;ProtectedImage ... /&gt;
+&lt;/Button&gt;</code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <div class="stat-grid">
+            <div class="stat"><strong>28/28</strong><span>backend tests passed</span></div>
+            <div class="stat"><strong>7/7</strong><span>frontend tests passed</span></div>
+            <div class="stat"><strong>0 + 30</strong><span>real JPEG timestamps</span></div>
+            <div class="stat"><strong>8/8</strong><span>containers healthy</span></div>
+          </div>
+          <ul class="checklist">
+            <li>Anonymous recording reads returned 401; Viewer playback reads returned 403.</li>
+            <li>A real manual recording longer than 30 seconds completed successfully.</li>
+            <li>The detail API returned ordered keyframes at 0 and 30 seconds.</li>
+            <li>FFprobe confirmed the source as H.264 MP4 and both previews as decodable JPEG/MJPEG.</li>
+            <li>The protected MP4 returned HTTP 206 for a byte-range request.</li>
+            <li>The download response returned an attachment with a safe filename.</li>
+            <li>Camera, manual mode, and Completed-state filters returned the expected record.</li>
+            <li>Reversed date ranges returned HTTP 400.</li>
+            <li>The frontend test clicked the 0:30 preview and confirmed video currentTime became 30.</li>
+            <li>The frontend interaction test created a PNG snapshot, fetched the MP4 download, and changed playback speed to 4x.</li>
+            <li>All migrations created the keyframe schema in a temporary clean PostgreSQL database.</li>
+            <li>Two real keyframe rows remained stable across an API container restart.</li>
+            <li>Backend release build had zero warnings/errors; frontend lint, tests, and production build passed.</li>
+          </ul>
+          <div class="callout warning">
+            <span class="callout-title">Visual verification limitation</span>
+            <p>The in-app browser connection was unavailable in this session. Real API/media proof and automated React interaction verification passed, but a fresh interactive visual pass could not be recorded.</p>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>10. Boundaries and next step</h2>
+          <p>
+            The browser currently fetches the complete authenticated MP4 into a
+            Blob before playback. This is simple and secure for the assessment
+            recordings, but very large production archives would benefit from
+            cookie-authenticated or signed short-lived streaming URLs. The API
+            already supports range requests for that future transport.
+          </p>
+          <p>
+            Keyframes are visual navigation aids, not AI scene recognition.
+            Recording deletion/retention policies are not assessment Step 7
+            requirements. Global cross-resource search remains Step 9.
+          </p>
+          <div class="callout">
+            <span class="callout-title">Next: Step 8, only after review.</span>
+            <p>Step 8 will add the complete event list, filters, details, close action, real-time event panel, active alarms, and assessment-level incidents. No Step 8 implementation has started.</p>
+          </div>
+        </section>
+
+        <footer class="doc-footer">
+          <a href="step-06-real-recording-workflows.html">← Step 06</a>
+          <span>VMS full-stack assessment · Step 07</span>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

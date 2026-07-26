@@ -109,6 +109,8 @@ describe('authentication and authorization UI', () => {
   beforeEach(() => {
     sessionStorage.clear()
     vi.restoreAllMocks()
+    URL.createObjectURL = vi.fn(() => 'blob:vms-test')
+    URL.revokeObjectURL = vi.fn()
   })
 
   it('redirects an anonymous visitor to the login screen', () => {
@@ -338,5 +340,123 @@ describe('authentication and authorization UI', () => {
     fireEvent.click(
       screen.getByRole('button', { name: /close detail panel/i }),
     )
+  })
+
+  it('provides recording playback controls and clickable keyframes', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    const recording = {
+      id: 'recording-1',
+      cameraId: 'camera-1',
+      cameraName: 'Entrance',
+      mode: 'Manual',
+      state: 'Completed',
+      startedAt: '2026-07-26T12:00:00Z',
+      endedAt: '2026-07-26T12:01:05Z',
+      durationSeconds: 65,
+      fileSizeBytes: 500_000,
+      failureReason: null,
+      triggerEventId: null,
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.includes('/api/recordings?')) {
+        return Response.json([recording])
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([
+          {
+            id: 'camera-1',
+            name: 'Entrance',
+            location: 'Main entrance',
+            hlsUrl: '/camera-1/index.m3u8',
+          },
+        ])
+      }
+      if (url.endsWith('/api/recordings/recording-1')) {
+        return Response.json({
+          recording,
+          keyframes: [
+            { id: 'keyframe-0', timestampSeconds: 0 },
+            { id: 'keyframe-30', timestampSeconds: 30 },
+            { id: 'keyframe-60', timestampSeconds: 60 },
+          ],
+        })
+      }
+      if (
+        url.endsWith('/api/recordings/recording-1/media')
+        || url.endsWith('/api/recordings/recording-1/download')
+        || url.includes('/keyframes/')
+      ) {
+        return new Response(new Blob(['media']), {
+          headers: {
+            'Content-Type': url.includes('/keyframes/')
+              ? 'image/jpeg'
+              : 'video/mp4',
+          },
+        })
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/playback')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Playback', level: 2 }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Keyframe timeline')).toBeInTheDocument()
+    expect(
+      screen.getByRole('slider', { name: /recording timeline/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /forward 10s/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /snapshot/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /download mp4/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /seek to 0:30/i }))
+      .toBeInTheDocument()
+
+    const video = document.querySelector('video')!
+    fireEvent.click(screen.getByRole('button', { name: /seek to 0:30/i }))
+    expect(video.currentTime).toBe(30)
+
+    Object.defineProperty(video, 'videoWidth', {
+      configurable: true,
+      value: 640,
+    })
+    Object.defineProperty(video, 'videoHeight', {
+      configurable: true,
+      value: 360,
+    })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D)
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      (callback) => callback(new Blob(['snapshot'], { type: 'image/png' })),
+    )
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
+      () => undefined,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /snapshot/i }))
+    expect(await screen.findByText(/playback snapshot downloaded/i))
+      .toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /download mp4/i }))
+    expect(await screen.findByText(/recording download started/i))
+      .toBeInTheDocument()
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: /speed/i }))
+    fireEvent.click(await screen.findByRole('option', { name: '4×' }))
+    expect(video.playbackRate).toBe(4)
+
+    expect(
+      screen.getByRole('link', { name: /playback recordings and keyframes/i }),
+    ).toBeInTheDocument()
   })
 })

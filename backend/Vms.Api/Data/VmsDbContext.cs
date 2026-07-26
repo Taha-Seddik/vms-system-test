@@ -21,6 +21,8 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
 
     public DbSet<Recording> Recordings => Set<Recording>();
 
+    public DbSet<RecordingKeyframe> RecordingKeyframes => Set<RecordingKeyframe>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -121,5 +123,19 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
             .WithMany(item => item.Recordings)
             .HasForeignKey(item => item.CameraId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        var keyframe = modelBuilder.Entity<RecordingKeyframe>();
+        keyframe.HasKey(item => item.Id);
+        keyframe.Property(item => item.FileName).HasMaxLength(100).IsRequired();
+        keyframe.HasIndex(item => new
+        {
+            item.RecordingId,
+            item.TimestampSeconds
+        }).IsUnique();
+        keyframe
+            .HasOne(item => item.Recording)
+            .WithMany(item => item.Keyframes)
+            .HasForeignKey(item => item.RecordingId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

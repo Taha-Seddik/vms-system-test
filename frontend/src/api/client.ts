@@ -15,6 +15,25 @@ interface ApiRequestOptions extends RequestInit {
   accessToken?: string
 }
 
+async function getErrorMessage(response: Response) {
+  let message =
+    response.status === 401
+      ? 'Your credentials or session are not valid.'
+      : 'The request could not be completed.'
+
+  try {
+    const problem = (await response.json()) as {
+      title?: string
+      detail?: string
+    }
+    message = problem.detail ?? problem.title ?? message
+  } catch {
+    // The default status message is sufficient for an empty response.
+  }
+
+  return message
+}
+
 export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
@@ -30,22 +49,7 @@ export async function apiRequest<T>(
   })
 
   if (!response.ok) {
-    let message =
-      response.status === 401
-        ? 'Your credentials or session are not valid.'
-        : 'The request could not be completed.'
-
-    try {
-      const problem = (await response.json()) as {
-        title?: string
-        detail?: string
-      }
-      message = problem.detail ?? problem.title ?? message
-    } catch {
-      // The default status message above is sufficient for an empty response.
-    }
-
-    throw new ApiError(response.status, message)
+    throw new ApiError(response.status, await getErrorMessage(response))
   }
 
   if (response.status === 204) {
@@ -53,4 +57,24 @@ export async function apiRequest<T>(
   }
 
   return (await response.json()) as T
+}
+
+export async function apiRequestBlob(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<Blob> {
+  const { accessToken, headers, ...requestOptions } = options
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...requestOptions,
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...headers,
+    },
+  })
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await getErrorMessage(response))
+  }
+
+  return response.blob()
 }
