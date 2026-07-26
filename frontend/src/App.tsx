@@ -8,6 +8,8 @@ import { CommandCenterPage } from './pages/CommandCenterPage'
 import { EventsPage } from './pages/EventsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlaybackPage } from './pages/PlaybackPage'
+import { SearchPage } from './pages/SearchPage'
+import { UsersPage } from './pages/UsersPage'
 import { useAuth } from './auth/AuthContext'
 
 function RoleHome() {
@@ -38,12 +40,14 @@ function App() {
             <Route path="command-center" element={<CommandCenterPage />} />
             <Route path="events" element={<EventsPage />} />
             <Route path="playback" element={<PlaybackPage />} />
+            <Route path="search" element={<SearchPage />} />
           </Route>
           <Route
             element={<ProtectedRoute allowedRoles={['Administrator']} />}
           >
             <Route path="activity" element={<ActivityPage />} />
             <Route path="manage/cameras" element={<CameraManagementPage />} />
+            <Route path="manage/users" element={<UsersPage />} />
           </Route>
         </Route>
       </Route>

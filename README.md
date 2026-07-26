@@ -211,6 +211,17 @@ types and required fields, combined filters, details, alarm/incident
 classification, the close lifecycle, command-center consistency, a real
 SignalR update, and automatic cleanup of temporary records.
 
+Verify Step 9 user management, search, and audit logging:
+
+```powershell
+.\scripts\verify-users-search-audit.ps1
+```
+
+The script creates a temporary Viewer, verifies assignment-limited access,
+changes its assignment/password/role, proves session revocation, searches all
+four resource categories, checks role-sensitive results and filters, confirms
+durable Administrator/Operator audit records, and deletes the temporary user.
+
 Local source checks:
 
 ```powershell
@@ -403,6 +414,32 @@ one open event and closes it when capacity recovers.
 | `GET /api/events/{id}` | Administrator, Operator | Read one event with complete fields and classifications |
 | `POST /api/events/{id}/close` | Administrator, Operator | Persist Closed status and publish a SignalR update |
 
+## Step 9 users, search, and audit logs
+
+Administrators can open <http://localhost:3000/manage/users> to create, edit,
+disable, reset passwords, change roles, delete users, and assign cameras to
+Viewers. A Viewer must always have at least one valid assignment. Password,
+role, and disabled-state changes revoke active sessions immediately.
+
+Administrators and Operators can open <http://localhost:3000/search> to search
+cameras, recordings, and events. Administrators also receive user results.
+Shared filters cover date, camera, camera group, status, and event type.
+
+Administrators can open <http://localhost:3000/activity> to filter durable
+audit history by actor, resource, action, and date. Login/logout records and
+successful authenticated write operations include actor, action, resource,
+timestamp, and description. Recent audited Operator actions also appear in the
+Command Center.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/users` | Administrator | Search/filter managed Identity accounts |
+| `POST /api/users` | Administrator | Create an account, role, and Viewer assignments |
+| `PUT /api/users/{id}` | Administrator | Update role, state, password, and assignments |
+| `DELETE /api/users/{id}` | Administrator | Delete a non-current account |
+| `GET /api/search` | Administrator, Operator | Search cameras, recordings, events, and permitted users |
+| `GET /api/audit-logs` | Administrator | Filter durable audit records |
+
 ## Repository layout
 
 ```text
@@ -413,6 +450,7 @@ backend/
     Models/                API request/response and configuration models
     Domain/                Identity user extension and VMS domain entities
     Extensions/            DI, authentication, policies, claims, persistence
+    Middleware/            Successful-write audit capture
     Utils/                 Small reusable stateless helpers
     Data/                  EF Core context, migrations, and seed data
   Vms.Api.Tests/           API integration tests
@@ -428,6 +466,7 @@ scripts/
   verify-live-recording.ps1 End-to-end Steps 5/6 access and media verification
   verify-playback.ps1      End-to-end Step 7 playback/keyframe verification
   verify-events.ps1        End-to-end Step 8 event/alarm verification
+  verify-users-search-audit.ps1 End-to-end Step 9 verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -468,6 +507,9 @@ The Step 7 guide is:
 The Step 8 guide is:
 [`docs/steps/step-08-events-alarms-incidents.html`](docs/steps/step-08-events-alarms-incidents.html).
 
+The Step 9 guide is:
+[`docs/steps/step-09-users-search-audit.html`](docs/steps/step-09-users-search-audit.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -480,6 +522,7 @@ color treatment.
 
 ## Scope
 
-User administration, global search, and full audit-log management remain gated
-by the approved plan. The raw local MediaMTX HLS port is not yet protected;
-media authorization hardening is scheduled for Step 10.
+Final API documentation, validation/security review, responsive-state polish,
+screenshots, and the complete requirements checklist remain gated by Step 10.
+The raw local MediaMTX HLS port is not yet protected; media authorization
+hardening is scheduled for Step 10.

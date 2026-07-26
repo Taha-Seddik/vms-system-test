@@ -65,6 +65,7 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         services.AddScoped<AuthenticationService>();
+        services.AddScoped<AuditService>();
         services.AddScoped<CameraAccessService>();
         services.AddScoped<CameraGroupService>();
         services.AddScoped<CameraHealthService>();
@@ -73,7 +74,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<EventService>();
         services.AddScoped<RecordingService>();
         services.AddScoped<SessionValidationService>();
+        services.AddScoped<SearchService>();
         services.AddScoped<StorageEventService>();
+        services.AddScoped<UserManagementService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<ApplicationUptime>();
         services.AddSingleton<CameraHealthCheckCoordinator>();

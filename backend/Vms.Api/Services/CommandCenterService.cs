@@ -127,12 +127,10 @@ public sealed class CommandCenterService(
             .Where(item => item.RoleId == operatorRoleId.Value)
             .Select(item => item.UserId)
             .ToListAsync(cancellationToken);
-        var events = await database.SystemEvents
+        var activity = await database.AuditLogs
             .AsNoTracking()
             .Where(item =>
-                item.UserId.HasValue
-                && operatorIds.Contains(item.UserId.Value)
-                && AuthenticationEventTypes.Contains(item.Type))
+                operatorIds.Contains(item.UserId))
             .OrderByDescending(item => item.Timestamp)
             .Take(8)
             .ToListAsync(cancellationToken);
@@ -141,14 +139,19 @@ public sealed class CommandCenterService(
             .Where(user => operatorIds.Contains(user.Id))
             .ToDictionaryAsync(user => user.Id, cancellationToken);
 
-        return events
-            .Where(item =>
-                item.UserId.HasValue && users.ContainsKey(item.UserId.Value))
+        return activity
+            .Where(item => users.ContainsKey(item.UserId))
             .Select(item => new OperatorActivityResponse(
                 item.Id,
-                item.UserId!.Value,
-                users[item.UserId.Value].DisplayName,
-                item.Type,
+                item.UserId,
+                users[item.UserId].DisplayName,
+                item.Action switch
+                {
+                    "Login" => SystemEventType.UserLogin,
+                    "Logout" => SystemEventType.UserLogout,
+                    _ => null
+                },
+                item.Action,
                 item.Timestamp,
                 item.Description))
             .ToArray();

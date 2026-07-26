@@ -291,7 +291,11 @@ describe('authentication and authorization UI', () => {
     expect(await screen.findByText('Entrance')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add camera/i }))
       .toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /manage/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', {
+        name: /camera management cameras and groups/i,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('loads the command center with required operational metrics', async () => {
@@ -418,6 +422,221 @@ describe('authentication and authorization UI', () => {
     expect(
       screen.queryByRole('button', { name: 'Close event' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('allows an Administrator to create a Viewer with assignments', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    let created = false
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, options) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.includes('/api/users?')) {
+        return Response.json(
+          created
+            ? [
+                {
+                  id: 'new-viewer-id',
+                  username: 'night.viewer',
+                  displayName: 'Night Viewer',
+                  role: 'Viewer',
+                  isEnabled: true,
+                  assignedCameras: [
+                    { id: 'camera-1', name: 'Entrance' },
+                  ],
+                  createdAt: '2026-07-26T12:00:00Z',
+                  lastLoginAt: null,
+                  lastActivityAt: null,
+                },
+              ]
+            : [],
+        )
+      }
+      if (url.endsWith('/api/cameras/manage')) {
+        return Response.json([
+          {
+            id: 'camera-1',
+            name: 'Entrance',
+            location: 'Main entrance',
+          },
+        ])
+      }
+      if (url.endsWith('/api/users') && options?.method === 'POST') {
+        created = true
+        return Response.json(
+          {
+            id: 'new-viewer-id',
+            username: 'night.viewer',
+            displayName: 'Night Viewer',
+            role: 'Viewer',
+            isEnabled: true,
+            assignedCameras: [{ id: 'camera-1', name: 'Entrance' }],
+            createdAt: '2026-07-26T12:00:00Z',
+            lastLoginAt: null,
+            lastActivityAt: null,
+          },
+          { status: 201 },
+        )
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/manage/users')
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Users and permissions',
+        level: 2,
+      }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add user' }))
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'night.viewer' },
+    })
+    fireEvent.change(screen.getByLabelText('Display name'), {
+      target: { value: 'Night Viewer' },
+    })
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'Viewer123!' },
+    })
+    fireEvent.click(screen.getByLabelText(/Entrance.*Main entrance/i))
+    fireEvent.click(screen.getByRole('button', { name: 'Save user' }))
+
+    expect(await screen.findByText('night.viewer was created.'))
+      .toBeInTheDocument()
+  })
+
+  it('searches all resource categories from one page', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([])
+      }
+      if (url.endsWith('/api/camera-groups')) {
+        return Response.json([])
+      }
+      if (url.includes('/api/search?')) {
+        return Response.json({
+          generatedAt: '2026-07-26T12:00:00Z',
+          cameras: [
+            {
+              id: 'camera-1',
+              name: 'Entrance',
+              location: 'Main entrance',
+              cameraGroupId: 'group-1',
+              cameraGroupName: 'Perimeter',
+              status: 'Online',
+              recordingStatus: 'NotRecording',
+            },
+          ],
+          recordings: [],
+          events: [
+            {
+              id: 'event-1',
+              type: 'MotionDetected',
+              timestamp: '2026-07-26T12:00:00Z',
+              cameraId: 'camera-1',
+              cameraName: 'Entrance',
+              severity: 'Warning',
+              status: 'Open',
+              description: 'Motion at entrance.',
+            },
+          ],
+          users: [
+            {
+              id: 'viewer-id',
+              username: 'viewer',
+              displayName: 'Assigned Camera Viewer',
+              role: 'Viewer',
+              isEnabled: true,
+              createdAt: '2026-07-26T12:00:00Z',
+            },
+          ],
+        })
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/search')
+
+    expect(
+      await screen.findByRole('heading', { name: 'Search', level: 2 }),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Cameras', level: 6 }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Recordings', level: 6 }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Events', level: 6 }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Users', level: 6 }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Motion Detected')).toBeInTheDocument()
+    expect(screen.getByText('Assigned Camera Viewer')).toBeInTheDocument()
+  })
+
+  it('shows durable audit activity to an Administrator', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.includes('/api/audit-logs?')) {
+        return Response.json({
+          matchingCount: 1,
+          items: [
+            {
+              id: 'audit-1',
+              timestamp: '2026-07-26T12:00:00Z',
+              userId: 'operator-id',
+              actorUsername: 'operator',
+              action: 'Executed',
+              resourceType: 'Recording',
+              resourceId: 'camera-1',
+              description: "operator executed Recording 'camera-1'.",
+            },
+          ],
+        })
+      }
+      if (url.endsWith('/api/auth/activity')) {
+        return Response.json({ activeSessions: 2, recentEvents: [] })
+      }
+      if (url.endsWith('/api/users')) {
+        return Response.json([])
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/activity')
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Audit activity',
+        level: 2,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Executed')).toBeInTheDocument()
+    expect(screen.getByText('Recording')).toBeInTheDocument()
+    expect(screen.getByText(/operator executed Recording/i))
+      .toBeInTheDocument()
   })
 
   it('provides recording playback controls and clickable keyframes', async () => {

@@ -1,6 +1,7 @@
 using Vms.Api.Data;
 using Vms.Api.Extensions;
 using Vms.Api.Hubs;
+using Vms.Api.Middleware;
 
 if (args.Contains("--health-check", StringComparer.Ordinal))
 {
@@ -28,6 +29,7 @@ app.UseExceptionHandler();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AuditWriteMiddleware>();
 
 await DatabaseInitializer.InitializeAsync(app.Services);
 

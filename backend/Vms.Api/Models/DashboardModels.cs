@@ -54,7 +54,8 @@ public sealed record OperatorActivityResponse(
     Guid Id,
     Guid UserId,
     string DisplayName,
-    SystemEventType Type,
+    SystemEventType? Type,
+    string Action,
     DateTimeOffset Timestamp,
     string Description);
 

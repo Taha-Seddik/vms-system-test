@@ -646,7 +646,7 @@ function OperatorActivityList({
         <Box className="dashboard-list-row" key={item.id}>
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontWeight: 700 }}>
-              {item.displayName}
+              {item.displayName} · {item.action}
             </Typography>
             <Typography
               className={showAll ? undefined : 'preview-description'}

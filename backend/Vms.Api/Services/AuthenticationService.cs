@@ -69,6 +69,12 @@ public sealed class AuthenticationService(
             SystemEventType.UserLogin,
             $"{user.DisplayName} signed in.",
             now));
+        database.AuditLogs.Add(CreateAuthenticationAudit(
+            user,
+            session.Id,
+            "Login",
+            $"{user.DisplayName} signed in.",
+            now));
         await database.SaveChangesAsync(cancellationToken);
         await dashboardUpdates.PublishAsync("user-login", cancellationToken);
 
@@ -103,6 +109,12 @@ public sealed class AuthenticationService(
         database.SystemEvents.Add(CreateActivityEvent(
             session.User,
             SystemEventType.UserLogout,
+            $"{session.User.DisplayName} signed out.",
+            now));
+        database.AuditLogs.Add(CreateAuthenticationAudit(
+            session.User,
+            session.Id,
+            "Logout",
             $"{session.User.DisplayName} signed out.",
             now));
         await database.SaveChangesAsync(cancellationToken);
@@ -190,4 +202,22 @@ public sealed class AuthenticationService(
                 .ToArray(),
             user.LastLoginAt,
             user.LastActivityAt);
+
+    private static AuditLog CreateAuthenticationAudit(
+        ApplicationUser user,
+        Guid sessionId,
+        string action,
+        string description,
+        DateTimeOffset timestamp) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Timestamp = timestamp,
+            UserId = user.Id,
+            ActorUsername = user.UserName ?? string.Empty,
+            Action = action,
+            ResourceType = "Session",
+            ResourceId = sessionId.ToString(),
+            Description = description
+        };
 }

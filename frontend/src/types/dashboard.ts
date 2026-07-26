@@ -68,7 +68,8 @@ export interface OperatorActivity {
   id: string
   userId: string
   displayName: string
-  type: SystemEventType
+  type: SystemEventType | null
+  action: string
   timestamp: string
   description: string
 }

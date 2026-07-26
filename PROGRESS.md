@@ -13,7 +13,7 @@ current step has been reviewed and explicitly approved.
 | 6. Real recording workflows | Completed and verified | Manual/continuous/event FFmpeg capture, playable FFprobe-validated MP4s, persisted lifecycle/failures, 25 backend tests, live verification, HTML guide |
 | 7. Playback and keyframes | Completed and verified | Protected MP4 playback/download, recording filters, timeline controls, snapshots, FFmpeg JPEGs every 30 seconds, clickable keyframe seeking, 28 backend tests, 7 frontend tests, live verifier, HTML guide |
 | 8. Events, alarms, and incidents | Completed and verified | Required event types/fields, filtering, details, close lifecycle, automatic Storage Full monitoring, alarm/incident rules, SignalR updates, 34 backend tests, 8 frontend tests, live verifier, HTML guide |
-| 9. Users, search, and audit logs | Not started | — |
+| 9. Users, search, and audit logs | Completed and verified | Identity user administration, roles and Viewer assignments, four-category search, required filters, durable audit logs, operator activity, 39 backend tests, 11 frontend tests, clean migration, live verifier, HTML guide |
 | 10. Final integration and documentation | Not started | — |
 
 ## Step 1 acceptance evidence
@@ -224,3 +224,33 @@ current step has been reviewed and explicitly approved.
 - `docs/steps/step-08-events-alarms-incidents.html` explains requirements,
   classification rules, runtime flows, code, proof, limitations, and the gated
   Step 9 handoff.
+
+## Step 9 acceptance evidence
+
+- Administrator-only user management creates, updates, disables, password
+  resets, changes roles, deletes, and searches ASP.NET Core Identity users.
+- Viewer creation/update requires at least one valid camera assignment.
+  Administrator and Operator accounts cannot retain Viewer assignments.
+- Password, role, and disabled-state changes revoke active sessions. The
+  current Administrator cannot delete, disable, or demote their own account.
+- `GET /api/search` returns grouped camera, recording, event, and
+  Administrator-only user results. It supports text, date, camera, camera
+  group, status, and event-type filters with bounded result sizes.
+- Operators can search operational resources but receive no user records.
+  Viewers receive `403` for system-wide search.
+- Login/logout and successful authenticated POST/PUT/PATCH/DELETE operations
+  create durable audit rows containing actor, action, resource, timestamp, and
+  description. Failed writes are not marked successful.
+- The Administrator Audit Activity page filters by actor, resource, action,
+  and date. The Command Center now shows recent audited Operator actions.
+- A clean temporary PostgreSQL database applied every migration and created
+  the indexed `AuditLogs` table; the temporary database was removed.
+- `dotnet test Vms.slnx --no-restore`: 39 passed with zero warnings. Frontend
+  lint, 11 tests, and production build passed.
+- `scripts/verify-users-search-audit.ps1` passed against the Docker stack. It
+  completed the full temporary-user lifecycle, assignment enforcement, session
+  revocation, four-category search, filters, audit persistence, and
+  command-center operator-activity checks, then deleted the temporary user.
+- `docs/steps/step-09-users-search-audit.html` explains requirements, security
+  flows, search semantics, audit behavior, code, proof, boundaries, and the
+  gated Step 10 handoff.

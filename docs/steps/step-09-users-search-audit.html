@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Step 9 VMS user management, global search, and audit logging implementation guide.">
+    <title>Step 9 - Users, search, and audit logs</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 09 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#dependencies">Dependencies and reuse</a></li>
+          <li><a href="#users">User-management flow</a></li>
+          <li><a href="#search">Search flow</a></li>
+          <li><a href="#audit">Audit flow</a></li>
+          <li><a href="#security">Security rules</a></li>
+          <li><a href="#layers">Backend layers</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#understand">What to understand</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 09
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Users, search, and audit logs</h1>
+          <p class="lede">
+            Step 9 completes day-to-day administration. Administrators manage
+            Identity accounts, roles, passwords, and Viewer assignments;
+            operators search operational resources; and important successful
+            writes become durable, filterable audit records.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Identity:</strong> ASP.NET Core Identity</span>
+            <span><strong>Search:</strong> Four resource categories</span>
+            <span><strong>Audit:</strong> PostgreSQL</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The PDF requires user and role management, permissions, audit logs
+            for important user activities, and search across cameras,
+            recordings, events, and users. Search must support date, camera,
+            camera group, status, and event-type filters.
+          </p>
+          <div class="callout">
+            Viewer assignments remain mandatory from Step 2. Step 9 exposes
+            those assignments to Administrators instead of weakening the
+            assignment-aware authorization already enforced by the API.
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <div class="grid three">
+            <article class="card">
+              <h3>Users</h3>
+              <p>Create, update, disable, reset passwords, change roles, delete, and assign cameras to Viewers.</p>
+            </article>
+            <article class="card">
+              <h3>Search</h3>
+              <p>One workspace searches cameras, recordings, events, and Administrator-visible users with shared filters.</p>
+            </article>
+            <article class="card">
+              <h3>Audit</h3>
+              <p>Successful writes and login/logout activity record actor, action, resource, description, and timestamp.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>3. Dependencies and reuse</h2>
+          <div class="grid three">
+            <article class="card">
+              <h3>ASP.NET Core Identity</h3>
+              <p>Reuses the Step 2 account, password hashing, role, security-stamp, and lockout infrastructure. No custom password cryptography was added.</p>
+            </article>
+            <article class="card">
+              <h3>EF Core and PostgreSQL</h3>
+              <p>Stores the new durable audit records and queries the existing camera, recording, event, assignment, and user tables.</p>
+            </article>
+            <article class="card">
+              <h3>React and Material UI</h3>
+              <p>Provide the Administrator user editor, global search workspace, and audit activity screen using the existing frontend stack.</p>
+            </article>
+          </div>
+          <div class="callout">
+            Step 9 adds no new NuGet or npm dependency. It deliberately builds
+            on the libraries and database already used by the project.
+          </div>
+        </section>
+
+        <section class="section" id="users">
+          <h2>4. User-management flow</h2>
+          <div class="flow">
+            <div class="flow-step"><span>1</span><div><h3>Administrator enters account details</h3><p>Username, display name, strong password, role, enabled state, and Viewer assignments are submitted.</p></div></div>
+            <div class="flow-step"><span>2</span><div><h3>Identity performs security work</h3><p>ASP.NET Core Identity validates and hashes passwords, normalizes usernames, maintains roles, security stamps, and lockout data.</p></div></div>
+            <div class="flow-step"><span>3</span><div><h3>Assignments are validated</h3><p>A Viewer must have at least one real camera. Administrator and Operator accounts cannot carry Viewer assignments.</p></div></div>
+            <div class="flow-step"><span>4</span><div><h3>Security changes revoke sessions</h3><p>Password, role, or disabled-state changes revoke active sessions so old JWTs stop working immediately.</p></div></div>
+          </div>
+          <p>
+            The current Administrator cannot delete their own account, disable
+            it, or remove their own Administrator role. This prevents an
+            accidental lockout of the management interface.
+          </p>
+        </section>
+
+        <section class="section" id="search">
+          <h2>5. Search flow</h2>
+          <p>
+            <code>GET /api/search</code> runs bounded database queries over four
+            existing domains and returns grouped results. It does not copy data
+            into a separate search index, which keeps this assessment
+            implementation small and consistent.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Filter</th><th>Applied to</th></tr></thead>
+              <tbody>
+                <tr><td>Text</td><td>Camera names/locations/groups, recording cameras, event descriptions/cameras, usernames/display names</td></tr>
+                <tr><td>Date</td><td>Recording start, event timestamp, user creation</td></tr>
+                <tr><td>Camera</td><td>Cameras, recordings, events, Viewer assignments</td></tr>
+                <tr><td>Camera group</td><td>Cameras, recordings, camera-linked events, Viewer assignments</td></tr>
+                <tr><td>Status</td><td>Camera/recording/event/user status where the value is meaningful</td></tr>
+                <tr><td>Event type</td><td>Events</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            Operators can search cameras, recordings, and events. User results
+            are returned only to Administrators because user records are an
+            administration concern.
+          </div>
+        </section>
+
+        <section class="section" id="audit">
+          <h2>6. Audit flow</h2>
+          <p>
+            Authentication writes explicit Login and Logout audit records.
+            A small middleware observes every other authenticated successful
+            POST, PUT, PATCH, or DELETE response and stores a normalized record.
+            Failed requests are not reported as successful operations.
+          </p>
+          <div class="grid two">
+            <article class="card">
+              <h3>Recorded fields</h3>
+              <p>UTC timestamp, user ID, username snapshot, action, resource type, resource ID when available, and description.</p>
+            </article>
+            <article class="card">
+              <h3>Consumers</h3>
+              <p>The Administrator Audit Activity page shows full filtered history. The Command Center shows recent actions performed by Operators.</p>
+            </article>
+          </div>
+          <p>
+            Username is stored as a snapshot, so an audit remains readable even
+            if the related user is later deleted. Audit rows deliberately do
+            not cascade with user deletion.
+          </p>
+        </section>
+
+        <section class="section" id="security">
+          <h2>7. Security rules</h2>
+          <ul class="check-list">
+            <li>Only Administrators can list or mutate users and read full audit history.</li>
+            <li>Administrators and Operators can use system-wide search; Viewers receive 403.</li>
+            <li>Operators never receive user search results.</li>
+            <li>Viewer creation/update fails unless at least one valid camera is assigned.</li>
+            <li>Passwords are processed by Identity and never returned by the API.</li>
+            <li>Role, password, and disabled-state changes revoke active sessions.</li>
+            <li>Self-deletion, self-disable, and self-role removal return 409.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="layers">
+          <h2>8. Backend layers</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Layer/folder</th><th>Step 9 responsibility</th></tr></thead>
+              <tbody>
+                <tr><td>Controllers</td><td>User, search, and audit HTTP routes plus RBAC and date validation.</td></tr>
+                <tr><td>Services</td><td>Identity workflows, grouped search queries, audit persistence.</td></tr>
+                <tr><td>Models</td><td>Validated requests and stable response contracts.</td></tr>
+                <tr><td>Domain</td><td>Durable AuditLog entity alongside Identity users and assignments.</td></tr>
+                <tr><td>Middleware</td><td>Captures successful authenticated write operations.</td></tr>
+                <tr><td>Data</td><td>EF Core mapping, indexes, and AddAuditLogs migration.</td></tr>
+                <tr><td>Extensions</td><td>Registers the focused Step 9 services.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>9. Important code</h2>
+          <h3>Mandatory Viewer assignment</h3>
+          <pre><code>if (role == AppRole.Viewer &amp;&amp; cameraIds.Count == 0)
+{
+    return "A Viewer must be assigned at least one camera.";
+}
+
+if (role != AppRole.Viewer &amp;&amp; cameraIds.Count &gt; 0)
+{
+    return "Camera assignments are only valid for Viewer accounts.";
+}</code></pre>
+
+          <h3>Immediate session revocation</h3>
+          <pre><code>foreach (var session in activeSessions)
+{
+    session.RevokedAt = now;
+    session.RevokedReason = "Account changed by an administrator";
+}</code></pre>
+
+          <h3>Audit only successful writes</h3>
+          <pre><code>if (!WriteMethods.Contains(context.Request.Method)
+    || context.Response.StatusCode is &lt; 200 or &gt;= 300
+    || context.User.Identity?.IsAuthenticated != true)
+{
+    return;
+}</code></pre>
+
+          <h3>Endpoints</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Endpoint</th><th>Access</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /api/users</code></td><td>Administrator</td><td>Search/filter users</td></tr>
+                <tr><td><code>POST /api/users</code></td><td>Administrator</td><td>Create Identity account</td></tr>
+                <tr><td><code>PUT /api/users/{id}</code></td><td>Administrator</td><td>Role, state, password, assignments</td></tr>
+                <tr><td><code>DELETE /api/users/{id}</code></td><td>Administrator</td><td>Delete non-current account</td></tr>
+                <tr><td><code>GET /api/search</code></td><td>Administrator, Operator</td><td>Grouped cross-resource search</td></tr>
+                <tr><td><code>GET /api/audit-logs</code></td><td>Administrator</td><td>Filtered audit history</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>10. Verification evidence</h2>
+          <ul class="check-list">
+            <li>39 backend tests passed with zero warnings.</li>
+            <li>11 frontend interaction tests, ESLint, and production build passed.</li>
+            <li>A clean temporary PostgreSQL database applied every migration and created AuditLogs.</li>
+            <li>The live verifier created a Viewer, proved one-camera access, changed its assignment and password, verified old-session rejection, changed its role, and deleted it.</li>
+            <li>Live global search returned cameras, recordings, events, and Administrator-only users.</li>
+            <li>Live filters verified text, camera, event type, status, role, enabled state, and assignment.</li>
+            <li>User changes and an Operator camera action were found in durable audit history.</li>
+            <li>The audited Operator action appeared in Command Center operator activity.</li>
+          </ul>
+          <pre><code>dotnet test Vms.slnx --no-restore
+
+Push-Location frontend
+npm run lint
+npm test -- --run
+npm run build
+Pop-Location
+
+.\scripts\verify-users-search-audit.ps1</code></pre>
+        </section>
+
+        <section class="section" id="understand">
+          <h2>11. What you should understand</h2>
+          <div class="grid two">
+            <article class="card"><h3>Identity still owns passwords</h3><p>The new service orchestrates Identity APIs. It does not implement custom hashing or password-reset cryptography.</p></article>
+            <article class="card"><h3>Assignments are authorization data</h3><p>They are not labels. Camera access reads the persisted assignment on every Viewer camera request.</p></article>
+            <article class="card"><h3>Search respects roles</h3><p>A global endpoint does not mean global disclosure. Operators receive no user results and Viewers cannot call it.</p></article>
+            <article class="card"><h3>Events and audit logs differ</h3><p>Events describe operational conditions. Audit logs answer who performed a successful system-changing action.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>12. Boundaries and next step</h2>
+          <p>
+            Search is database-backed and bounded to 50 results per category;
+            an external search engine is unnecessary for this assessment.
+            Audit logs are append-only through the application and have no
+            retention policy. Production retention/export belongs outside the
+            requested scope.
+          </p>
+          <div class="next-step">
+            <span>Final gate</span>
+            <strong>Step 10 - Final integration and documentation</strong>
+            <p>No Step 10 implementation begins until this step is reviewed.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

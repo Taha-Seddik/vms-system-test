@@ -25,7 +25,9 @@ type NavigationIcon =
   | 'cameras'
   | 'events'
   | 'playback'
+  | 'search'
   | 'manage'
+  | 'users'
   | 'activity'
 
 interface NavigationItem {
@@ -73,6 +75,12 @@ export function AppLayout() {
           to: '/playback',
           icon: 'playback',
         },
+        {
+          label: 'Search',
+          description: 'Find system resources',
+          to: '/search',
+          icon: 'search',
+        },
       ]
 
   const administrationItems: NavigationItem[] = hasRole('Administrator')
@@ -84,8 +92,14 @@ export function AppLayout() {
           icon: 'manage',
         },
         {
+          label: 'User management',
+          description: 'Roles and assignments',
+          to: '/manage/users',
+          icon: 'users',
+        },
+        {
           label: 'User activity',
-          description: 'Sessions and sign-ins',
+          description: 'Audit logs and sessions',
           to: '/activity',
           icon: 'activity',
         },
@@ -260,6 +274,12 @@ function NavigationGlyph({ name }: { name: NavigationIcon }) {
         <path d="m10 9 5 3-5 3z" />
       </>
     ),
+    search: (
+      <>
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 5 5" />
+      </>
+    ),
     events: (
       <>
         <path d="M12 3 3.5 19h17z" />
@@ -271,6 +291,13 @@ function NavigationGlyph({ name }: { name: NavigationIcon }) {
         <path d="M4 7h10M4 17h16" />
         <circle cx="17" cy="7" r="2.5" />
         <circle cx="8" cy="17" r="2.5" />
+      </>
+    ),
+    users: (
+      <>
+        <circle cx="9" cy="8" r="3" />
+        <path d="M3.5 19c.5-4 2.5-6 5.5-6s5 2 5.5 6" />
+        <path d="M16 8h5M18.5 5.5v5" />
       </>
     ),
     activity: (

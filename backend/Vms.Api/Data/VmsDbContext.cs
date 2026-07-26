@@ -23,6 +23,8 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
 
     public DbSet<RecordingKeyframe> RecordingKeyframes => Set<RecordingKeyframe>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -137,5 +139,30 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
             .WithMany(item => item.Keyframes)
             .HasForeignKey(item => item.RecordingId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        var auditLog = modelBuilder.Entity<AuditLog>();
+        auditLog.HasKey(item => item.Id);
+        auditLog.Property(item => item.ActorUsername)
+            .HasMaxLength(100)
+            .IsRequired();
+        auditLog.Property(item => item.Action).HasMaxLength(80).IsRequired();
+        auditLog.Property(item => item.ResourceType)
+            .HasMaxLength(80)
+            .IsRequired();
+        auditLog.Property(item => item.ResourceId).HasMaxLength(200);
+        auditLog.Property(item => item.Description)
+            .HasMaxLength(1000)
+            .IsRequired();
+        auditLog.HasIndex(item => item.Timestamp);
+        auditLog.HasIndex(item => new
+        {
+            item.UserId,
+            item.Timestamp
+        });
+        auditLog.HasIndex(item => new
+        {
+            item.ResourceType,
+            item.Timestamp
+        });
     }
 }
