@@ -46,10 +46,10 @@
           </div>
           <h1>Authentication, roles, and camera assignments</h1>
           <p class="lede">
-            Step 2 creates the application's identity boundary: securely hashed
-            credentials, signed and revocable JWT sessions, three assessment
-            roles, server-side Viewer camera filtering, protected React routes,
-            and persisted login/logout activity.
+            Step 2 creates the application's identity boundary: ASP.NET Core
+            Identity-managed users, passwords, roles, and lockout; signed and
+            revocable JWT sessions; server-side Viewer camera filtering;
+            protected React routes; and persisted login/logout activity.
           </p>
           <div class="hero-meta">
             <span><strong>Completed:</strong> 26 July 2026</span>
@@ -96,8 +96,9 @@
         <section class="section" id="outcome">
           <h2>2. Completed outcome</h2>
           <ul class="checklist">
-            <li>Three enabled demo identities with assessment roles.</li>
-            <li>ASP.NET Core password hashing using salted PBKDF2 hashes.</li>
+            <li>Three demo users managed by ASP.NET Core Identity.</li>
+            <li>Identity-managed password hashing, normalization, security stamps, and lockout.</li>
+            <li>Administrator, Operator, and Viewer stored in Identity role tables.</li>
             <li>HMAC-SHA256 JWTs with issuer, audience, expiry, user, role, and session claims.</li>
             <li>Persisted server sessions, checked on every authenticated request.</li>
             <li>Immediate token revocation when the user logs out.</li>
@@ -130,7 +131,7 @@
             <span class="flow-arrow">→</span>
             <div class="flow-node accent">
               <strong>2. API verifies</strong>
-              <small>PBKDF2 hash + account + Viewer assignment</small>
+              <small>UserManager + SignInManager + role + Viewer assignment</small>
             </div>
             <span class="flow-arrow">→</span>
             <div class="flow-node">
@@ -151,6 +152,17 @@
               active-user and activity metrics required by later dashboard work.
             </p>
           </div>
+          <div class="callout warning space-top">
+            <p class="callout-title">Identity boundary versus JWT boundary</p>
+            <p>
+              ASP.NET Core Identity owns users, password verification, failed
+              access lockout, normalization, security stamps, roles, and role
+              membership. The VMS issues only the standards-based JWT required
+              by the approved plan and records its session ID so logout and
+              active-user tracking are immediate. No custom password or role
+              implementation remains.
+            </p>
+          </div>
         </section>
 
         <section class="section" id="backend">
@@ -164,10 +176,10 @@
           </p>
           <pre class="file-tree"><code>Vms.Api/
 ├── Controllers/   Auth, cameras, access-policy, and system HTTP APIs
-├── Services/      Authentication, JWT, session, and camera-access logic
+├── Services/      Identity workflows, JWT, session, and camera-access logic
 ├── Models/        Requests, responses, camera DTOs, and JWT options
 ├── Domain/
-│   └── Entities/  Users, sessions, assignments, and system events
+│   └── Entities/  Identity user extension, sessions, assignments, events
 ├── Extensions/    DI, JWT setup, policies, claims, and persistence setup
 ├── Utils/         Small reusable stateless helpers
 ├── Data/          DbContext, migrations, initialization, and demo IDs
@@ -176,9 +188,19 @@
             <article class="card">
               <h3>Users</h3>
               <p>
-                Stores normalized unique usernames, display names, password
-                hashes, role, enabled state, creation time, last login, and last
-                activity.
+                <code>ApplicationUser</code> extends
+                <code>IdentityUser&lt;Guid&gt;</code>. Identity stores normalized
+                usernames, password hashes, security stamps, failed-access
+                counts, lockout state, and other standard identity fields.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Roles and membership</h3>
+              <p>
+                Administrator, Operator, and Viewer are persisted using
+                <code>IdentityRole&lt;Guid&gt;</code> and
+                <code>IdentityUserRole&lt;Guid&gt;</code>, then accessed through
+                <code>RoleManager</code> and <code>UserManager</code>.
               </p>
             </article>
             <article class="card">
@@ -344,9 +366,9 @@
                   <td>Restored by <code>dotnet restore</code> or Docker build.</td>
                 </tr>
                 <tr>
-                  <td>ASP.NET Core Identity password hasher</td>
-                  <td>Produces salted PBKDF2 password hashes.</td>
-                  <td>Included with the ASP.NET Core shared framework.</td>
+                  <td>ASP.NET Core Identity + EF Core store</td>
+                  <td>Manages users, password verification, normalization, lockout, security stamps, roles, and membership.</td>
+                  <td>Restored from <code>Microsoft.AspNetCore.Identity.EntityFrameworkCore</code>.</td>
                 </tr>
                 <tr>
                   <td>EF Core + Npgsql</td>
@@ -387,6 +409,38 @@
           <h2>8. Important implementation code</h2>
 
           <div class="code-block">
+            <div class="code-header">
+              <strong>ASP.NET Core Identity registration</strong>
+              <span>Extensions/AuthenticationExtensions.cs</span>
+            </div>
+            <pre><code>services
+    .AddIdentityCore&lt;ApplicationUser&gt;(options =&gt;
+    {
+        options.Password.RequiredLength = 8;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    })
+    .AddRoles&lt;IdentityRole&lt;Guid&gt;&gt;()
+    .AddSignInManager()
+    .AddEntityFrameworkStores&lt;VmsDbContext&gt;()
+    .AddDefaultTokenProviders();</code></pre>
+          </div>
+
+          <div class="code-block space-top">
+            <div class="code-header">
+              <strong>Identity credential and role verification</strong>
+              <span>Services/AuthenticationService.cs</span>
+            </div>
+            <pre><code>var user = await userManager.FindByNameAsync(request.Username.Trim());
+var signInResult = await signInManager.CheckPasswordSignInAsync(
+    user,
+    request.Password,
+    lockoutOnFailure: true);
+
+var roles = await userManager.GetRolesAsync(user);</code></pre>
+          </div>
+
+          <div class="code-block space-top">
             <div class="code-header">
               <strong>Revocable JWT validation</strong>
               <span>Extensions/AuthenticationExtensions.cs</span>
@@ -472,11 +526,12 @@ Pop-Location</code></pre>
           <div class="grid two">
             <article class="card">
               <h3>Backend integration tests</h3>
-              <p><strong>11 passed, 0 failed.</strong></p>
+              <p><strong>13 passed, 0 failed.</strong></p>
               <p>
                 Covers anonymous rejection, blank/invalid credentials, all
                 three role boundaries, Viewer filtering, zero-assignment
-                denial, logout revocation, and activity events.
+                denial, logout revocation, activity events, Identity role
+                management, and five-attempt account lockout.
               </p>
             </article>
             <article class="card">
@@ -496,12 +551,23 @@ Pop-Location</code></pre>
               </p>
             </article>
             <article class="card">
+              <h3>Database migrations</h3>
+              <p><strong>Existing and clean databases passed.</strong></p>
+              <p>
+                The Identity schema upgrade preserved the existing user table
+                and role information. A security-stamp backfill supports users
+                created before Identity, and a temporary clean PostgreSQL
+                database successfully applied all migrations from zero.
+              </p>
+            </article>
+            <article class="card">
               <h3>Live Docker verification</h3>
               <p><strong>All eight services healthy.</strong></p>
               <p>
-                The live script proved role HTTP status codes, exact Viewer
-                camera IDs, token revocation, activity events, non-plaintext
-                passwords, and two persisted assignments.
+                The live script proved Identity's three role records and three
+                memberships, security/lockout columns, non-plaintext passwords,
+                exact Viewer camera IDs, token revocation, activity events, and
+                two persisted assignments.
               </p>
             </article>
           </div>
@@ -532,6 +598,8 @@ Pop-Location</code></pre>
           <h3 class="space-top">Before proceeding to Step 3, understand:</h3>
           <ul class="checklist">
             <li>The API, not React, is the authority for roles and assignments.</li>
+            <li>Identity owns users, passwords, normalization, roles, security stamps, and lockout.</li>
+            <li>The VMS owns only JWT issuance, revocable sessions, assignments, and activity.</li>
             <li>A JWT is accepted only while its PostgreSQL session remains active.</li>
             <li>Viewer assignment records already use stable camera string IDs.</li>
             <li>Step 3 must replace the static catalog without weakening the same filter.</li>

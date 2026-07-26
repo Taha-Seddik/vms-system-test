@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Vms.Api.Data;
@@ -169,6 +170,66 @@ public sealed class AuthAuthorizationTests : IClassFixture<VmsApiFactory>
             new LoginRequest(" ", ""));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Seeded_roles_are_managed_by_aspnet_core_identity()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider
+            .GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider
+            .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var viewer = await userManager.FindByNameAsync("viewer");
+
+        Assert.NotNull(viewer);
+        Assert.True(await roleManager.RoleExistsAsync(nameof(AppRole.Viewer)));
+        Assert.True(await userManager.IsInRoleAsync(viewer, nameof(AppRole.Viewer)));
+    }
+
+    [Fact]
+    public async Task Identity_locks_an_account_after_five_failed_password_attempts()
+    {
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var userManager = scope.ServiceProvider
+                .GetRequiredService<UserManager<ApplicationUser>>();
+            var user = new ApplicationUser
+            {
+                Id = Guid.NewGuid(),
+                UserName = "lockout-test",
+                DisplayName = "Lockout Test",
+                IsEnabled = true,
+                LockoutEnabled = true,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            Assert.True((await userManager.CreateAsync(user, "Lockout123!")).Succeeded);
+            Assert.True((await userManager.AddToRoleAsync(
+                user,
+                nameof(AppRole.Operator))).Succeeded);
+        }
+
+        using var client = _factory.CreateClient();
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var failedResponse = await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new LoginRequest("lockout-test", "incorrect"));
+            Assert.Equal(HttpStatusCode.Unauthorized, failedResponse.StatusCode);
+        }
+
+        var correctPasswordResponse = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new LoginRequest("lockout-test", "Lockout123!"));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, correctPasswordResponse.StatusCode);
+        await using var verificationScope = _factory.Services.CreateAsyncScope();
+        var verificationManager = verificationScope.ServiceProvider
+            .GetRequiredService<UserManager<ApplicationUser>>();
+        var lockedUser = await verificationManager.FindByNameAsync("lockout-test");
+        Assert.NotNull(lockedUser);
+        Assert.True(await verificationManager.IsLockedOutAsync(lockedUser));
     }
 
     private static async Task<LoginResponse> LoginAsync(

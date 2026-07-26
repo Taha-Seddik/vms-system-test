@@ -20,7 +20,8 @@ public sealed class SessionValidationService(VmsDbContext database)
         if (session is null ||
             session.RevokedAt is not null ||
             session.ExpiresAt <= now ||
-            !session.User.IsEnabled)
+            !session.User.IsEnabled ||
+            session.User.LockoutEnd > now)
         {
             return false;
         }

@@ -1,13 +1,15 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Vms.Api.Domain.Entities;
 
 namespace Vms.Api.Data;
 
-public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options) : DbContext(options)
+public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
-    public DbSet<AppUser> Users => Set<AppUser>();
-
-    public DbSet<UserCameraAssignment> UserCameraAssignments => Set<UserCameraAssignment>();
+    public DbSet<UserCameraAssignment> UserCameraAssignments =>
+        Set<UserCameraAssignment>();
 
     public DbSet<UserSession> UserSessions => Set<UserSession>();
 
@@ -15,14 +17,27 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var user = modelBuilder.Entity<AppUser>();
-        user.HasKey(item => item.Id);
-        user.Property(item => item.Username).HasMaxLength(100).IsRequired();
-        user.Property(item => item.NormalizedUsername).HasMaxLength(100).IsRequired();
-        user.HasIndex(item => item.NormalizedUsername).IsUnique();
+        base.OnModelCreating(modelBuilder);
+
+        var user = modelBuilder.Entity<ApplicationUser>();
+        user.ToTable("Users");
+        user.Property(item => item.UserName)
+            .HasColumnName("Username")
+            .HasMaxLength(100);
+        user.Property(item => item.NormalizedUserName)
+            .HasColumnName("NormalizedUsername")
+            .HasMaxLength(100);
+        user.Property(item => item.Email).HasMaxLength(256);
+        user.Property(item => item.NormalizedEmail).HasMaxLength(256);
         user.Property(item => item.DisplayName).HasMaxLength(160).IsRequired();
-        user.Property(item => item.PasswordHash).HasMaxLength(500).IsRequired();
-        user.Property(item => item.Role).HasConversion<string>().HasMaxLength(32);
+        user.Property(item => item.PasswordHash).HasMaxLength(500);
+
+        modelBuilder.Entity<IdentityRole<Guid>>().ToTable("Roles");
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("UserRoles");
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
 
         var assignment = modelBuilder.Entity<UserCameraAssignment>();
         assignment.HasKey(item => new { item.UserId, item.CameraId });

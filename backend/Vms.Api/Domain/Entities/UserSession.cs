@@ -16,5 +16,5 @@ public sealed class UserSession
 
     public string? RevokedReason { get; set; }
 
-    public AppUser User { get; set; } = null!;
+    public ApplicationUser User { get; set; } = null!;
 }

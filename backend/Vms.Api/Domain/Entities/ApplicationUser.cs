@@ -1,20 +1,10 @@
-using Vms.Api.Domain;
+using Microsoft.AspNetCore.Identity;
 
 namespace Vms.Api.Domain.Entities;
 
-public sealed class AppUser
+public sealed class ApplicationUser : IdentityUser<Guid>
 {
-    public Guid Id { get; set; }
-
-    public required string Username { get; set; }
-
-    public required string NormalizedUsername { get; set; }
-
-    public required string DisplayName { get; set; }
-
-    public required string PasswordHash { get; set; }
-
-    public AppRole Role { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
 
     public bool IsEnabled { get; set; } = true;
 

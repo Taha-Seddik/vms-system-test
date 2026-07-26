@@ -168,10 +168,13 @@ These accounts are seeded only when the user table is empty:
 | Operator | `operator` | `Operator123!` | All four cameras |
 | Viewer | `viewer` | `Viewer123!` | Assigned `camera-1` and `camera-2` only |
 
-The passwords above are local assessment credentials. PostgreSQL stores only
-salted PBKDF2 hashes. JWT signing configuration can be overridden through the
-`JWT_ISSUER`, `JWT_AUDIENCE`, and `JWT_SIGNING_KEY` values in an untracked
-`.env` file.
+The passwords above are local assessment credentials. ASP.NET Core Identity
+manages users, normalized usernames, salted password hashes, failed-access
+counts, lockout, security stamps, roles, and role membership in PostgreSQL.
+The VMS adds its own short-lived JWT and revocable session record because the
+approved assessment plan explicitly requires JWT plus active-user/logout
+tracking. JWT signing configuration can be overridden through the `JWT_ISSUER`,
+`JWT_AUDIENCE`, and `JWT_SIGNING_KEY` values in an untracked `.env` file.
 
 Verify authentication, roles, assignments, revocation, activity, and database
 storage against the running Docker stack:
@@ -196,9 +199,9 @@ Authentication endpoints:
 backend/
   Vms.Api/                 Lean layered ASP.NET Core API
     Controllers/           HTTP routes, status codes, authorization attributes
-    Services/              Authentication, sessions, tokens, camera access
+    Services/              Identity workflows, sessions, JWTs, camera access
     Models/                API request/response and configuration models
-    Domain/                Business enums and persistent domain entities
+    Domain/                Identity user extension and VMS domain entities
     Extensions/            DI, authentication, policies, claims, persistence
     Utils/                 Small reusable stateless helpers
     Data/                  EF Core context, migrations, and seed data

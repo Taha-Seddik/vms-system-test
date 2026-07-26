@@ -5,13 +5,13 @@ using Vms.Api.Data;
 using Vms.Api.Domain;
 using Vms.Api.Domain.Entities;
 using Vms.Api.Models;
-using Vms.Api.Utils;
 
 namespace Vms.Api.Services;
 
 public sealed class AuthenticationService(
     VmsDbContext database,
-    IPasswordHasher<AppUser> passwordHasher,
+    UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     JwtTokenService tokenService,
     IOptions<JwtOptions> jwtOptions)
 {
@@ -25,36 +25,29 @@ public sealed class AuthenticationService(
             return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
-        var normalizedUsername = UsernameNormalizer.Normalize(request.Username);
-        var user = await database.Users
-            .Include(item => item.CameraAssignments)
-            .SingleOrDefaultAsync(
-                item => item.NormalizedUsername == normalizedUsername,
-                cancellationToken);
-
+        var user = await userManager.FindByNameAsync(request.Username.Trim());
         if (user is null || !user.IsEnabled)
         {
             return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
-        var verification = passwordHasher.VerifyHashedPassword(
+        var signInResult = await signInManager.CheckPasswordSignInAsync(
             user,
-            user.PasswordHash,
-            request.Password);
-
-        if (verification == PasswordVerificationResult.Failed)
+            request.Password,
+            lockoutOnFailure: true);
+        if (!signInResult.Succeeded)
         {
             return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
-        if (user.Role == AppRole.Viewer && user.CameraAssignments.Count == 0)
+        await database.Entry(user)
+            .Collection(item => item.CameraAssignments)
+            .LoadAsync(cancellationToken);
+        var role = await GetRequiredRoleAsync(user);
+
+        if (role == AppRole.Viewer && user.CameraAssignments.Count == 0)
         {
             return new LoginResult(null, LoginFailure.ViewerHasNoAssignments);
-        }
-
-        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
-        {
-            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -78,9 +71,9 @@ public sealed class AuthenticationService(
         await database.SaveChangesAsync(cancellationToken);
 
         var response = new LoginResponse(
-            tokenService.CreateToken(user, session),
+            tokenService.CreateToken(user, role, session),
             session.ExpiresAt,
-            ToUserResponse(user));
+            ToUserResponse(user, role));
 
         return new LoginResult(response, LoginFailure.None);
     }
@@ -121,8 +114,9 @@ public sealed class AuthenticationService(
             .AsNoTracking()
             .Include(item => item.CameraAssignments)
             .SingleAsync(item => item.Id == userId, cancellationToken);
+        var role = await GetRequiredRoleAsync(user);
 
-        return ToUserResponse(user);
+        return ToUserResponse(user, role);
     }
 
     public async Task<AuthActivityResponse> GetActivityAsync(
@@ -151,8 +145,20 @@ public sealed class AuthenticationService(
         return new AuthActivityResponse(activeSessions, events);
     }
 
+    private async Task<AppRole> GetRequiredRoleAsync(ApplicationUser user)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+        if (roles.Count != 1 || !Enum.TryParse<AppRole>(roles[0], out var role))
+        {
+            throw new InvalidOperationException(
+                $"User '{user.UserName}' must have exactly one valid VMS role.");
+        }
+
+        return role;
+    }
+
     private static SystemEvent CreateActivityEvent(
-        AppUser user,
+        ApplicationUser user,
         SystemEventType type,
         string description,
         DateTimeOffset timestamp) =>
@@ -167,12 +173,14 @@ public sealed class AuthenticationService(
             Status = EventStatus.Closed
         };
 
-    private static AuthenticatedUserResponse ToUserResponse(AppUser user) =>
+    private static AuthenticatedUserResponse ToUserResponse(
+        ApplicationUser user,
+        AppRole role) =>
         new(
             user.Id,
-            user.Username,
+            user.UserName ?? string.Empty,
             user.DisplayName,
-            user.Role,
+            role,
             user.CameraAssignments
                 .OrderBy(item => item.CameraId)
                 .Select(item => item.CameraId)

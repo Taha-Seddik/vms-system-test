@@ -150,6 +150,15 @@ SELECT COUNT(*) FILTER (
     SELECT COUNT(*)
     FROM "UserCameraAssignments"
     WHERE "UserId" = '10000000-0000-0000-0000-000000000003'
+), (
+    SELECT COUNT(*) FROM "Roles"
+), (
+    SELECT COUNT(*) FROM "UserRoles"
+), (
+    SELECT COUNT(*)
+    FROM information_schema.columns
+    WHERE table_name = 'Users'
+      AND column_name IN ('SecurityStamp', 'AccessFailedCount', 'LockoutEnd')
 )
 FROM "Users";
 '@
@@ -161,6 +170,9 @@ $databaseEvidence = $databaseQuery | docker compose exec -T postgres psql `
 if ($LASTEXITCODE -ne 0) {
     throw "PostgreSQL verification query failed."
 }
-Assert-Equal $databaseEvidence.Trim() "0|2" "Passwords are hashed and the demo Viewer has two persisted assignments."
+Assert-Equal `
+    $databaseEvidence.Trim() `
+    "0|2|3|3|3" `
+    "Identity stores hashes, three roles, three memberships, lockout fields, and two Viewer assignments."
 
 Write-Host "Step 2 authentication verification completed successfully." -ForegroundColor Cyan
