@@ -13,7 +13,7 @@ RUN dotnet publish Vms.Api/Vms.Api.csproj \
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS runtime
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends libgssapi-krb5-2 \
+    && apt-get install --yes --no-install-recommends ffmpeg libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/publish .

@@ -19,6 +19,19 @@ const viewerLogin = {
   },
 }
 
+const administratorLogin = {
+  ...viewerLogin,
+  accessToken: 'admin-token',
+  user: {
+    ...viewerLogin.user,
+    id: 'admin-id',
+    username: 'admin',
+    displayName: 'System Administrator',
+    role: 'Administrator',
+    assignedCameraIds: [],
+  },
+}
+
 function renderApp(initialPath = '/') {
   return render(
     <ThemeProvider theme={theme}>
@@ -108,5 +121,63 @@ describe('authentication and authorization UI', () => {
     expect(
       screen.queryByRole('heading', { name: /authentication activity/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('loads the Administrator camera-management workspace', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.endsWith('/api/cameras/manage')) {
+        return Response.json([
+          {
+            id: 'camera-1',
+            name: 'Entrance',
+            location: 'Main entrance',
+            rtspUrl: 'rtsp://mediamtx:8554/camera-1',
+            hlsUrl: '/camera-1/index.m3u8',
+            group: { id: 'group-1', name: 'Perimeter' },
+            resolution: '640x360',
+            framesPerSecond: 10,
+            recordingStatus: 'NotRecording',
+            connectionStatus: 'Online',
+            isEnabled: true,
+            lastHeartbeatAt: '2026-07-26T00:00:00Z',
+            lastCheckedAt: '2026-07-26T00:00:00Z',
+            lastConnectionError: null,
+            createdAt: '2026-07-26T00:00:00Z',
+            updatedAt: '2026-07-26T00:00:00Z',
+          },
+        ])
+      }
+      if (url.endsWith('/api/camera-groups')) {
+        return Response.json([
+          {
+            id: 'group-1',
+            name: 'Perimeter',
+            description: 'Public entrances',
+            cameraCount: 1,
+            createdAt: '2026-07-26T00:00:00Z',
+            updatedAt: '2026-07-26T00:00:00Z',
+          },
+        ])
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/manage/cameras')
+
+    expect(
+      await screen.findByRole('heading', { name: /camera management/i }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('Entrance')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add camera/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /manage/i })).toBeInTheDocument()
   })
 })

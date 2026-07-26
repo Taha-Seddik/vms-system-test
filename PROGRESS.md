@@ -7,7 +7,7 @@ current step has been reviewed and explicitly approved.
 |---|---|---|
 | 1. Repository and media foundation | Completed and verified | Git repository, API/frontend/test scaffolds, healthy Compose topology, four decodable HLS feeds, verification script, HTML implementation guide |
 | 2. Authentication, roles, and assignments | Completed and verified | ASP.NET Core Identity, layered backend, JWT sessions, three Identity roles, lockout, persisted Viewer assignments, login/logout events, protected React routes, 13 backend tests, 3 frontend tests, live verification script, HTML guide |
-| 3. Camera management and health | Not started | — |
+| 3. Camera management and health | Completed and verified | Persistent cameras/groups, Administrator CRUD UI/API, FFprobe tests, automatic status and heartbeat monitoring, offline/reconnected events, 17 backend tests, 4 frontend tests, clean migration proof, live verification script, HTML guide |
 | 4. Command center dashboard | Not started | — |
 | 5. Multi-camera live monitoring | Not started | — |
 | 6. Real recording workflows | Not started | — |
@@ -58,3 +58,30 @@ current step has been reviewed and explicitly approved.
 - Step 1 foundation verification passed again with four decodable HLS feeds.
 - `docs/steps/step-02-authentication-roles-assignments.html` documents the
   architecture, dependencies, code, proof, tradeoffs, and Step 3 handoff.
+
+## Step 3 acceptance evidence
+
+- Camera and camera-group records are persisted through EF Core. The four demo
+  feeds are seeded as cameras in Perimeter and Operations groups.
+- Administrator camera/group CRUD, enable/disable, and management reads were
+  verified through APIs and focused backend tests.
+- Viewer assignment filtering still returns exactly `camera-1,camera-2`.
+  Viewers receive `403` for connection tests and management mutations.
+- FFprobe is installed in the API image, invoked without a shell, and bounded
+  by a configurable timeout. Live probes returned H.264, 640x360, and 10 FPS.
+- The 15-second background monitor marked all four cameras Online with
+  non-null last-heartbeat timestamps.
+- A temporary unavailable RTSP source generated exactly one open warning
+  Camera Offline event. Repairing it generated exactly one closed information
+  Camera Reconnected event.
+- The existing database upgraded successfully. A clean PostgreSQL database
+  applied all four migrations and contained four cameras and two groups.
+- `dotnet test Vms.slnx`: 17 passed; frontend tests: 4 passed.
+- Backend release build completed with 0 warnings/0 errors; frontend lint and
+  production build passed.
+- All eight Compose services were healthy and the four HLS feeds remained
+  decodable after the API image gained FFprobe.
+- `scripts/verify-camera-health.ps1` passed and removed its temporary camera
+  and group after verification.
+- `docs/steps/step-03-camera-management-health.html` explains the architecture,
+  dependencies, code, proof, tradeoffs, and Step 4 handoff.

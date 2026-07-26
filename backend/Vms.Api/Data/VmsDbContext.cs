@@ -8,6 +8,10 @@ namespace Vms.Api.Data;
 public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
+    public DbSet<CameraGroup> CameraGroups => Set<CameraGroup>();
+
+    public DbSet<Camera> Cameras => Set<Camera>();
+
     public DbSet<UserCameraAssignment> UserCameraAssignments =>
         Set<UserCameraAssignment>();
 
@@ -39,6 +43,34 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
         modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("RoleClaims");
         modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
 
+        var cameraGroup = modelBuilder.Entity<CameraGroup>();
+        cameraGroup.HasKey(item => item.Id);
+        cameraGroup.Property(item => item.Name).HasMaxLength(120).IsRequired();
+        cameraGroup.Property(item => item.Description).HasMaxLength(500);
+        cameraGroup.HasIndex(item => item.Name).IsUnique();
+
+        var camera = modelBuilder.Entity<Camera>();
+        camera.HasKey(item => item.Id);
+        camera.Property(item => item.Id).HasMaxLength(100);
+        camera.Property(item => item.Name).HasMaxLength(160).IsRequired();
+        camera.Property(item => item.Location).HasMaxLength(240).IsRequired();
+        camera.Property(item => item.RtspUrl).HasMaxLength(1000).IsRequired();
+        camera.Property(item => item.HlsPath).HasMaxLength(300).IsRequired();
+        camera.Property(item => item.ConnectionStatus)
+            .HasConversion<string>()
+            .HasMaxLength(32);
+        camera.Property(item => item.RecordingStatus)
+            .HasConversion<string>()
+            .HasMaxLength(32);
+        camera.Property(item => item.LastConnectionError).HasMaxLength(1000);
+        camera.HasIndex(item => item.Name);
+        camera.HasIndex(item => new { item.IsEnabled, item.ConnectionStatus });
+        camera
+            .HasOne(item => item.Group)
+            .WithMany(item => item.Cameras)
+            .HasForeignKey(item => item.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         var assignment = modelBuilder.Entity<UserCameraAssignment>();
         assignment.HasKey(item => new { item.UserId, item.CameraId });
         assignment.Property(item => item.CameraId).HasMaxLength(100);
@@ -46,6 +78,11 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
             .HasOne(item => item.User)
             .WithMany(item => item.CameraAssignments)
             .HasForeignKey(item => item.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        assignment
+            .HasOne(item => item.Camera)
+            .WithMany(item => item.UserAssignments)
+            .HasForeignKey(item => item.CameraId)
             .OnDelete(DeleteBehavior.Cascade);
 
         var session = modelBuilder.Entity<UserSession>();

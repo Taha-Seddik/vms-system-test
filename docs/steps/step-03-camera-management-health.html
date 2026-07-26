@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step 3 implementation guide: camera groups, camera CRUD, FFprobe connection testing, health monitoring, heartbeats, and connectivity events."
+    >
+    <title>Step 3 - Camera management and health</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 03 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#architecture">Health architecture</a></li>
+          <li><a href="#backend">Backend layers</a></li>
+          <li><a href="#data">Data and lifecycle</a></li>
+          <li><a href="#frontend">Management UI</a></li>
+          <li><a href="#dependencies">Dependencies</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 03
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Camera management and health monitoring</h1>
+          <p class="lede">
+            Step 3 turns the four foundation streams into real VMS resources:
+            persisted cameras and groups, Administrator CRUD controls, safe
+            FFprobe connection tests, automatic online/offline monitoring,
+            measured video metadata, last heartbeats, and durable connectivity
+            events.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Probe:</strong> FFprobe over RTSP/TCP</span>
+            <span><strong>Interval:</strong> 15 seconds</span>
+            <span><strong>Persistence:</strong> PostgreSQL + EF Core</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            Section 4 of the assessment requires each camera to expose its
+            name, location, RTSP URL, group, resolution, FPS, recording status,
+            online/offline status, and last heartbeat. It also explicitly
+            requires add, edit, delete, test connection, and enable/disable
+            operations. The event list includes Camera Offline and Camera
+            Reconnected.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Manage</h3>
+              <p>
+                Store cameras and groups in PostgreSQL and provide complete
+                camera CRUD plus group management to Administrators.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Measure</h3>
+              <p>
+                Open the configured RTSP source with FFprobe and capture codec,
+                width, height, FPS, elapsed time, and a useful failure reason.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Monitor</h3>
+              <p>
+                Recheck enabled cameras automatically, update heartbeat state,
+                and persist events only when connectivity changes.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>CameraGroup and Camera domain entities with an EF Core migration.</li>
+            <li>Two seeded groups: Perimeter and Operations.</li>
+            <li>Four seeded camera records mapped to the generated MediaMTX feeds.</li>
+            <li>Administrator camera list, create, edit, delete, enable, and disable APIs.</li>
+            <li>Administrator camera-group list, create, rename, and delete APIs.</li>
+            <li>Operator-or-Administrator connection-test endpoint.</li>
+            <li>Viewer camera list still filtered by persisted assignments.</li>
+            <li>FFprobe runs without a shell and has a configurable hard timeout.</li>
+            <li>Resolution, FPS, status, last check, heartbeat, and safe error persistence.</li>
+            <li>Background checks every 15 seconds for enabled cameras.</li>
+            <li>Open warning event on transition to Offline.</li>
+            <li>Closed informational event on Offline-to-Online reconnection.</li>
+            <li>Administrator Material UI workspace for cameras and groups.</li>
+            <li>Health badges, metadata, heartbeat, and test controls on camera screens.</li>
+            <li>Fifteen-second frontend polling until SignalR is added in Step 4.</li>
+            <li>Automated backend, frontend, migration, API, database, and media proof.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="architecture">
+          <h2>3. Health architecture</h2>
+          <p class="section-intro">
+            MediaMTX remains the media router. The API does not decode frames
+            itself; it starts a bounded FFprobe process against the RTSP URL,
+            interprets the result, and persists the operational state that the
+            UI and the next dashboard step consume.
+          </p>
+          <div class="architecture" aria-label="Camera health flow">
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>FFmpeg feed</strong>
+                <small>Generated H.264 source</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>MediaMTX</strong>
+                <small>RTSP routing</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node">
+                <strong>FFprobe</strong>
+                <small>Safe process + timeout</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>Health service</strong>
+                <small>Transition logic</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node">
+                <strong>PostgreSQL</strong>
+                <small>Status + events</small>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>Periodic monitor</strong>
+                <small>Every 15 seconds</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node accent">
+                <strong>Enabled cameras</strong>
+                <small>Disabled cameras skipped</small>
+              </div>
+              <span class="flow-arrow">-&gt;</span>
+              <div class="flow-node">
+                <strong>React UI</strong>
+                <small>15-second polling</small>
+              </div>
+            </div>
+          </div>
+          <div class="callout success">
+            <span class="callout-title">Events are transition-based</span>
+            <p>
+              Repeated failed checks do not create an event flood. A Camera
+              Offline event is added only when a camera enters Offline. A
+              Camera Reconnected event is added only when the previous state
+              was Offline and a new probe succeeds.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="backend">
+          <h2>4. Backend layers</h2>
+          <p class="section-intro">
+            The API remains one pragmatic project, but its responsibilities are
+            visible in the folder structure requested during Step 2.
+          </p>
+          <pre class="file-tree"><code>Vms.Api/
+|-- Controllers/
+|   |-- CamerasController.cs
+|   `-- CameraGroupsController.cs
+|-- Services/
+|   |-- CameraAccessService.cs
+|   |-- CameraManagementService.cs
+|   |-- CameraGroupService.cs
+|   |-- CameraHealthService.cs
+|   |-- CameraHealthMonitor.cs
+|   |-- CameraHealthCheckCoordinator.cs
+|   |-- ICameraProbe.cs
+|   `-- FfprobeCameraProbe.cs
+|-- Models/
+|   `-- CameraModels.cs
+|-- Domain/
+|   |-- CameraEnums.cs
+|   `-- Entities/
+|       |-- Camera.cs
+|       `-- CameraGroup.cs
+|-- Extensions/
+|   |-- CameraMappingExtensions.cs
+|   `-- ServiceCollectionExtensions.cs
+|-- Utils/
+|   `-- RtspUrlUtilities.cs
+`-- Data/
+    |-- DemoCameraData.cs
+    |-- VmsDbContext.cs
+    `-- Migrations/*AddCameraManagementAndHealth*</code></pre>
+
+          <div class="grid two space-top">
+            <article class="card">
+              <span class="card-number">HTTP boundary</span>
+              <h3>Controllers</h3>
+              <p>
+                Declare routes, authorization policies, request models, and
+                HTTP status mapping. They delegate business behavior.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Application behavior</span>
+              <h3>Services</h3>
+              <p>
+                Own CRUD rules, assignment-aware reads, probing, monitoring,
+                persistence, and transition-event generation.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Persistent meaning</span>
+              <h3>Domain and Data</h3>
+              <p>
+                Define camera state and relationships, then map them to
+                PostgreSQL with indexes, constraints, and migrations.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Contracts and helpers</span>
+              <h3>Models, Extensions, Utils</h3>
+              <p>
+                Keep API shapes, DI/mapping code, and small URL safety helpers
+                separate from domain entities.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="data">
+          <h2>5. Data and lifecycle rules</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Stored field</th>
+                  <th>Meaning</th>
+                  <th>Updated by</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ConnectionStatus</td>
+                  <td>Unknown, Online, Offline, or Disabled</td>
+                  <td>Enable/disable and health checks</td>
+                </tr>
+                <tr>
+                  <td>LastCheckedAt</td>
+                  <td>Last completed probe, successful or failed</td>
+                  <td>Every connection test</td>
+                </tr>
+                <tr>
+                  <td>LastHeartbeatAt</td>
+                  <td>Last time a video stream was confirmed</td>
+                  <td>Successful probe only</td>
+                </tr>
+                <tr>
+                  <td>Resolution / FPS</td>
+                  <td>Measured stream metadata, not user-entered claims</td>
+                  <td>Successful FFprobe result</td>
+                </tr>
+                <tr>
+                  <td>RecordingStatus</td>
+                  <td>NotRecording until Step 6 owns recording processes</td>
+                  <td>Future recording service</td>
+                </tr>
+                <tr>
+                  <td>LastConnectionError</td>
+                  <td>Bounded, credential-safe operational message</td>
+                  <td>Failed probe</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <span class="callout-title">Enable is not the same as Online</span>
+            <p>
+              Enabling a camera changes it to Unknown. Only a successful media
+              probe can make it Online. Disabling sets Disabled immediately and
+              removes the camera from background probing.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="frontend">
+          <h2>6. Frontend management workspace</h2>
+          <p class="section-intro">
+            Administrators receive a protected Manage navigation item and a
+            dedicated responsive workspace. Operators can test connections
+            from the normal camera list. Viewers see health for assigned
+            cameras but cannot test or mutate camera configuration.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Camera cards</h3>
+              <p>
+                Show source, group, status, resolution, FPS, recording state,
+                heartbeat, and the latest error.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Lifecycle controls</h3>
+              <p>
+                Add/edit dialog, enable switch, connection test, and confirmed
+                camera deletion.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Group controls</h3>
+              <p>
+                Create, rename, and delete groups. Deleting a group leaves its
+                cameras intact and ungrouped.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>7. Dependencies and what they do</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dependency</th>
+                  <th>Purpose in Step 3</th>
+                  <th>Important detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>FFprobe</td>
+                  <td>Opens RTSP video and reports codec, resolution, and FPS</td>
+                  <td>Installed through the API image's ffmpeg package</td>
+                </tr>
+                <tr>
+                  <td>MediaMTX</td>
+                  <td>Routes generated RTSP feeds to stable camera paths</td>
+                  <td>The API probes rtsp://mediamtx:8554/camera-N</td>
+                </tr>
+                <tr>
+                  <td>EF Core + Npgsql</td>
+                  <td>Persists camera configuration, health, and events</td>
+                  <td>Migration supports existing and empty PostgreSQL databases</td>
+                </tr>
+                <tr>
+                  <td>BackgroundService</td>
+                  <td>Runs recurring health cycles inside ASP.NET Core</td>
+                  <td>Uses PeriodicTimer and a cancellation token</td>
+                </tr>
+                <tr>
+                  <td>ASP.NET authorization</td>
+                  <td>Separates admin mutation, operator tests, and Viewer reads</td>
+                  <td>Uses Step 2 Identity roles and JWT sessions</td>
+                </tr>
+                <tr>
+                  <td>React + Material UI</td>
+                  <td>Provides responsive management and status surfaces</td>
+                  <td>Polls until SignalR arrives in Step 4</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            <span class="callout-title">What MediaMTX does here</span>
+            <p>
+              MediaMTX is not the database and does not own VMS camera records.
+              It is the media transport layer: generated FFmpeg publishers send
+              RTSP to it, FFprobe reads RTSP from it, and browsers later consume
+              its HLS output. PostgreSQL remains the source of truth for camera
+              names, groups, authorization, health, and events.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important implementation code</h2>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>FfprobeCameraProbe.cs</strong>
+              <span>Safe process arguments</span>
+            </div>
+            <pre><code>var startInfo = new ProcessStartInfo
+{
+    FileName = executable,
+    RedirectStandardOutput = true,
+    RedirectStandardError = true,
+    UseShellExecute = false,
+    CreateNoWindow = true
+};
+
+startInfo.ArgumentList.Add("-rtsp_transport");
+startInfo.ArgumentList.Add("tcp");
+startInfo.ArgumentList.Add("-show_entries");
+startInfo.ArgumentList.Add("stream=codec_name,width,height,r_frame_rate");
+startInfo.ArgumentList.Add("-of");
+startInfo.ArgumentList.Add("json");
+startInfo.ArgumentList.Add(rtspUrl);</code></pre>
+          </div>
+          <p>
+            <code>ArgumentList</code> passes the URL as one argument and never
+            asks a shell to interpret it. A linked cancellation source enforces
+            the configured timeout and kills the process tree on timeout.
+          </p>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>CameraHealthService.cs</strong>
+              <span>Health state</span>
+            </div>
+            <pre><code>camera.LastCheckedAt = checkedAt;
+camera.ConnectionStatus = camera.IsEnabled
+    ? result.Succeeded
+        ? CameraConnectionStatus.Online
+        : CameraConnectionStatus.Offline
+    : CameraConnectionStatus.Disabled;
+
+if (result.Succeeded)
+{
+    camera.LastHeartbeatAt = checkedAt;
+    camera.ResolutionWidth = result.ResolutionWidth;
+    camera.ResolutionHeight = result.ResolutionHeight;
+    camera.FramesPerSecond = result.FramesPerSecond;
+}</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>CameraHealthService.cs</strong>
+              <span>Transition events</span>
+            </div>
+            <pre><code>if (resultingStatus == CameraConnectionStatus.Offline
+    &amp;&amp; previousStatus != CameraConnectionStatus.Offline)
+{
+    database.SystemEvents.Add(new SystemEvent
+    {
+        Type = SystemEventType.CameraOffline,
+        Severity = EventSeverity.Warning,
+        Status = EventStatus.Open
+    });
+}
+else if (resultingStatus == CameraConnectionStatus.Online
+         &amp;&amp; previousStatus == CameraConnectionStatus.Offline)
+{
+    database.SystemEvents.Add(new SystemEvent
+    {
+        Type = SystemEventType.CameraReconnected,
+        Severity = EventSeverity.Information,
+        Status = EventStatus.Closed
+    });
+}</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>CamerasController.cs</strong>
+              <span>Role boundary</span>
+            </div>
+            <pre><code>[HttpPost]
+[Authorize(Policy = AppPolicies.AdministratorOnly)]
+public Task&lt;ActionResult&lt;ManagedCameraResponse&gt;&gt; Create(...)
+
+[HttpPost("{id}/test-connection")]
+[Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
+public Task&lt;ActionResult&lt;CameraConnectionTestResponse&gt;&gt; TestConnection(...)</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Run the proof</span>
+            </div>
+            <pre><code><span class="token-command">docker compose up --build -d</span>
+<span class="token-command">.\scripts\verify-camera-health.ps1</span></code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <div class="stat-grid">
+            <div class="stat">
+              <strong>17 / 17</strong>
+              <span>backend tests passed</span>
+            </div>
+            <div class="stat">
+              <strong>4 / 4</strong>
+              <span>frontend tests passed</span>
+            </div>
+            <div class="stat">
+              <strong>4 / 4</strong>
+              <span>cameras online</span>
+            </div>
+            <div class="stat">
+              <strong>8 / 8</strong>
+              <span>containers healthy</span>
+            </div>
+          </div>
+
+          <h3 class="space-top">Builds and tests</h3>
+          <ul class="checklist">
+            <li>Release backend build: 0 warnings and 0 errors.</li>
+            <li>Backend tests: 17 passed, including CRUD, RBAC, metadata, and transition events.</li>
+            <li>Frontend ESLint: passed.</li>
+            <li>Frontend component tests: 4 passed, including the Administrator management route.</li>
+            <li>Frontend production TypeScript/Vite build: passed.</li>
+          </ul>
+
+          <h3 class="space-top">Database migration</h3>
+          <p>
+            The existing Docker database upgraded successfully. A temporary
+            empty PostgreSQL database also applied all four migrations and
+            returned this evidence:
+          </p>
+          <div class="code-block">
+            <pre><code>Cameras | CameraGroups | Applied migrations
+4       | 2            | 4</code></pre>
+          </div>
+
+          <h3 class="space-top">Live media and health proof</h3>
+          <ul class="checklist">
+            <li>All Compose services reported running and healthy.</li>
+            <li>All four HLS playlists contained decodable H.264 video.</li>
+            <li>Live FFprobe returned 640x360 and 10 FPS.</li>
+            <li>All four persisted cameras became Online with non-null heartbeats.</li>
+            <li>Viewer received exactly camera-1 and camera-2.</li>
+            <li>Viewer connection test returned 403; Operator test succeeded.</li>
+            <li>Temporary group and camera create, edit, disable, enable, and delete succeeded.</li>
+            <li>A missing RTSP path persisted exactly one CameraOffline event.</li>
+            <li>Repairing that source persisted exactly one CameraReconnected event.</li>
+            <li>The temporary camera, group, and events were removed after verification.</li>
+          </ul>
+
+          <div class="callout warning">
+            <span class="callout-title">Visual browser limitation</span>
+            <p>
+              The embedded local-browser connection was unavailable in this
+              session. The UI was verified through its production build,
+              component tests, live frontend health endpoint, and live backing
+              APIs, but no manual browser screenshot was captured for Step 3.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>10. Boundaries and what comes next</h2>
+          <div class="grid two">
+            <article class="card">
+              <h3>Deliberately deferred</h3>
+              <p>
+                SignalR, dashboard metrics, active alarms, recording state,
+                full event management, and media authorization belong to later
+                approved steps.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Current tradeoffs</h3>
+              <p>
+                Four probes run sequentially to keep resource use predictable.
+                Group rename and delete use simple browser confirmation UI.
+                The ffmpeg package increases the API image size but supplies a
+                known-compatible FFprobe binary.
+              </p>
+            </article>
+          </div>
+
+          <h3 class="space-top">Before Step 4, understand:</h3>
+          <ol class="numbered-list">
+            <li>
+              PostgreSQL camera rows are now the source of truth. The original
+              hard-coded camera catalog has been removed.
+            </li>
+            <li>
+              LastHeartbeatAt means a real video probe succeeded; LastCheckedAt
+              also changes after failures.
+            </li>
+            <li>
+              Offline and reconnected events already exist. Step 4 can count
+              them as recent incidents, and Step 8 will add their full UI.
+            </li>
+            <li>
+              Step 4 should query this persisted state for total, online,
+              offline, and camera-health metrics instead of probing media
+              directly.
+            </li>
+            <li>
+              RecordingStatus intentionally remains NotRecording until Step 6
+              creates and supervises real FFmpeg recording processes.
+            </li>
+          </ol>
+
+          <div class="callout">
+            <span class="callout-title">Next approved step: Command center dashboard</span>
+            <p>
+              Step 4 will turn camera health and event state into operational
+              metrics, offline-camera lists, incidents, active alarms, storage
+              and recording information, active users, uptime, operator
+              activity, and automatic SignalR updates with a polling fallback.
+            </p>
+          </div>
+        </section>
+
+        <footer class="doc-footer">
+          <span>VMS technical assessment implementation evidence</span>
+          <a href="../index.html">Back to documentation index</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

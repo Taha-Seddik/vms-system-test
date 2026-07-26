@@ -52,9 +52,18 @@ export function AppLayout() {
                 Cameras
               </Button>
               {hasRole('Administrator') && (
-                <Button component={NavLink} to="/activity" color="inherit">
-                  Activity
-                </Button>
+                <>
+                  <Button
+                    component={NavLink}
+                    to="/manage/cameras"
+                    color="inherit"
+                  >
+                    Manage
+                  </Button>
+                  <Button component={NavLink} to="/activity" color="inherit">
+                    Activity
+                  </Button>
+                </>
               )}
             </Stack>
 

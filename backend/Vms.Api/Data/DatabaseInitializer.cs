@@ -27,6 +27,8 @@ public static class DatabaseInitializer
         var userManager = scope.ServiceProvider
             .GetRequiredService<UserManager<ApplicationUser>>();
 
+        await EnsureDemoCamerasAsync(database);
+
         foreach (var role in Enum.GetValues<AppRole>())
         {
             if (!await roleManager.RoleExistsAsync(role.ToString()))
@@ -64,6 +66,34 @@ public static class DatabaseInitializer
         await EnsureRoleAsync(userManager, viewer, AppRole.Viewer);
 
         await EnsureViewerAssignmentsAsync(database, viewer.Id);
+    }
+
+    private static async Task EnsureDemoCamerasAsync(VmsDbContext database)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var existingGroupIds = await database.CameraGroups
+            .Select(item => item.Id)
+            .ToListAsync();
+
+        foreach (var group in DemoCameraData.CreateGroups(now)
+                     .Where(group => !existingGroupIds.Contains(group.Id)))
+        {
+            database.CameraGroups.Add(group);
+        }
+
+        await database.SaveChangesAsync();
+
+        var existingCameraIds = await database.Cameras
+            .Select(item => item.Id)
+            .ToListAsync();
+
+        foreach (var camera in DemoCameraData.CreateCameras(now)
+                     .Where(camera => !existingCameraIds.Contains(camera.Id)))
+        {
+            database.Cameras.Add(camera);
+        }
+
+        await database.SaveChangesAsync();
     }
 
     private static async Task<ApplicationUser> EnsureUserAsync(

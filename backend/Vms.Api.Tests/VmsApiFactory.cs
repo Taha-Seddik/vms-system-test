@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Vms.Api.Data;
+using Vms.Api.Services;
 
 namespace Vms.Api.Tests;
 
@@ -29,8 +30,43 @@ public sealed class VmsApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<VmsDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<VmsDbContext>>();
             services.RemoveAll<VmsDbContext>();
+            services.RemoveAll<ICameraProbe>();
             services.AddDbContext<VmsDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+            services.AddSingleton<FakeCameraProbe>();
+            services.AddSingleton<ICameraProbe>(
+                provider => provider.GetRequiredService<FakeCameraProbe>());
         });
     }
+}
+
+public sealed class FakeCameraProbe : ICameraProbe
+{
+    public CameraProbeResult NextResult { get; set; } = Online();
+
+    public Task<CameraProbeResult> ProbeAsync(
+        string rtspUrl,
+        TimeSpan timeout,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(NextResult);
+
+    public static CameraProbeResult Online() =>
+        new(
+            true,
+            TimeSpan.FromMilliseconds(12),
+            "h264",
+            640,
+            360,
+            10,
+            null);
+
+    public static CameraProbeResult Offline(string error = "Connection refused.") =>
+        new(
+            false,
+            TimeSpan.FromMilliseconds(18),
+            null,
+            null,
+            null,
+            null,
+            error);
 }

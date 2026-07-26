@@ -99,6 +99,29 @@ body {
   background: linear-gradient(145deg, rgb(111 168 255 / 12%), #102235 60%);
 }
 
+.camera-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.camera-management-grid .MuiCard-root {
+  border-color: rgb(255 255 255 / 10%);
+}
+
+.camera-facts {
+  margin-top: 1.25rem;
+  color: #b8c7d5;
+  overflow-wrap: anywhere;
+}
+
+.group-row {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 2%);
+}
+
 .route-loader,
 .content-loader {
   display: grid;
@@ -110,5 +133,9 @@ body {
   .login-grid {
     grid-template-columns: 1fr;
     gap: 2.5rem;
+  }
+
+  .camera-management-grid {
+    grid-template-columns: 1fr;
   }
 }

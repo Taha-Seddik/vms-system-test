@@ -3,6 +3,7 @@ import { AppLayout } from './layout/AppLayout'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { ActivityPage } from './pages/ActivityPage'
 import { CamerasPage } from './pages/CamerasPage'
+import { CameraManagementPage } from './pages/CameraManagementPage'
 import { LoginPage } from './pages/LoginPage'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             element={<ProtectedRoute allowedRoles={['Administrator']} />}
           >
             <Route path="activity" element={<ActivityPage />} />
+            <Route path="manage/cameras" element={<CameraManagementPage />} />
           </Route>
         </Route>
       </Route>

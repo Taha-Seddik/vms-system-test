@@ -9,4 +9,6 @@ public sealed class UserCameraAssignment
     public DateTimeOffset AssignedAt { get; set; }
 
     public ApplicationUser User { get; set; } = null!;
+
+    public Camera Camera { get; set; } = null!;
 }

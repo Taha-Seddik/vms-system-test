@@ -6,6 +6,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Button,
   Grid,
   Link,
   Stack,
@@ -14,6 +15,7 @@ import {
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import type { AccessibleCamera } from '../types/auth'
+import type { CameraConnectionTest } from '../types/auth'
 
 const hlsBaseUrl =
   import.meta.env.VITE_HLS_BASE_URL ?? 'http://localhost:8888'
@@ -23,23 +25,57 @@ export function CamerasPage() {
   const [cameras, setCameras] = useState<AccessibleCamera[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [testMessage, setTestMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    let active = true
     const load = async () => {
       try {
         const result = await apiRequest<AccessibleCamera[]>(
           '/api/cameras/accessible',
           { accessToken: accessToken ?? undefined },
         )
-        setCameras(result)
+        if (active) {
+          setCameras(result)
+          setError(null)
+        }
       } catch {
-        setError('Camera access could not be loaded.')
+        if (active) {
+          setError('Camera access could not be loaded.')
+        }
       } finally {
-        setIsLoading(false)
+        if (active) {
+          setIsLoading(false)
+        }
       }
     }
     void load()
+    const interval = window.setInterval(() => void load(), 15000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [accessToken])
+
+  const testConnection = async (camera: AccessibleCamera) => {
+    setTestMessage(`Testing ${camera.name}...`)
+    try {
+      const result = await apiRequest<CameraConnectionTest>(
+        `/api/cameras/${camera.id}/test-connection`,
+        {
+          method: 'POST',
+          accessToken: accessToken ?? undefined,
+        },
+      )
+      setTestMessage(
+        result.succeeded
+          ? `${camera.name} is online (${result.resolution ?? 'video detected'}, ${result.elapsedMilliseconds} ms).`
+          : `${camera.name} is offline: ${result.error ?? 'connection failed'}`,
+      )
+    } catch {
+      setTestMessage(`${camera.name} could not be tested.`)
+    }
+  }
 
   return (
     <Stack spacing={4}>
@@ -61,6 +97,11 @@ export function CamerasPage() {
       </Box>
 
       {error && <Alert severity="error">{error}</Alert>}
+      {testMessage && (
+        <Alert severity="info" onClose={() => setTestMessage(null)}>
+          {testMessage}
+        </Alert>
+      )}
       {isLoading ? (
         <Box className="content-loader">
           <CircularProgress />
@@ -90,8 +131,28 @@ export function CamerasPage() {
                       <Typography color="text.secondary">
                         {camera.location}
                       </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {camera.group?.name ?? 'Ungrouped'} ·{' '}
+                        {camera.resolution ?? 'Resolution pending'} ·{' '}
+                        {camera.framesPerSecond
+                          ? `${camera.framesPerSecond} FPS`
+                          : 'FPS pending'}
+                      </Typography>
                     </Box>
-                    <Chip label={camera.id} size="small" variant="outlined" />
+                    <Stack spacing={1} sx={{ alignItems: 'flex-end' }}>
+                      <Chip
+                        label={camera.connectionStatus ?? 'Unknown'}
+                        size="small"
+                        color={
+                          camera.connectionStatus === 'Online'
+                            ? 'success'
+                            : camera.connectionStatus === 'Offline'
+                              ? 'error'
+                              : 'default'
+                        }
+                      />
+                      <Chip label={camera.id} size="small" variant="outlined" />
+                    </Stack>
                   </Stack>
                   <Box className="stream-placeholder">
                     <span>HLS feed authorized</span>
@@ -104,6 +165,31 @@ export function CamerasPage() {
                   >
                     {`${hlsBaseUrl}${camera.hlsUrl}`}
                   </Link>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ mt: 2, alignItems: { sm: 'center' } }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ flexGrow: 1 }}
+                    >
+                      Last heartbeat:{' '}
+                      {camera.lastHeartbeatAt
+                        ? new Date(camera.lastHeartbeatAt).toLocaleString()
+                        : 'Not received yet'}
+                    </Typography>
+                    {user?.role !== 'Viewer' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => void testConnection(camera)}
+                      >
+                        Test connection
+                      </Button>
+                    )}
+                  </Stack>
                 </CardContent>
               </Card>
             </Grid>

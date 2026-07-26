@@ -3,9 +3,10 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Steps 1 and 2**: the application/media
-foundation plus authentication, role authorization, Viewer camera assignments,
-and login/logout activity.
+The current repository contains **Steps 1 through 3**: the application/media
+foundation, Identity-based authentication and role authorization, Viewer
+camera assignments, persistent camera management, FFprobe connection testing,
+automatic health monitoring, heartbeats, and connectivity events.
 
 ## Architecture
 
@@ -129,7 +130,7 @@ Stop the stack without deleting database data:
 docker compose down
 ```
 
-## Verify Step 1
+## Verification
 
 After the containers are healthy:
 
@@ -144,6 +145,24 @@ The script verifies:
 - an actual decodable video stream behind every playlist using FFprobe inside
   the camera-generator container;
 - running and healthy Compose services.
+
+Verify Step 2 authentication and authorization:
+
+```powershell
+.\scripts\verify-auth.ps1
+```
+
+Verify Step 3 camera management and health:
+
+```powershell
+.\scripts\verify-camera-health.ps1
+```
+
+The Step 3 script checks persisted camera groups and cameras, assignment
+filtering, role boundaries, real FFprobe metadata, all four automatic
+heartbeats, camera and group CRUD, enable/disable, and a real
+offline-to-reconnected event transition. Temporary verification resources are
+cleaned up automatically.
 
 Local source checks:
 
@@ -193,6 +212,31 @@ Authentication endpoints:
 | `GET /api/auth/activity` | Administrator | Active sessions and login/logout events |
 | `GET /api/cameras/accessible` | Authenticated | Return the role-authorized camera list |
 
+## Step 3 camera management and health
+
+Camera configuration is stored in PostgreSQL. The API container includes
+FFprobe and checks enabled RTSP sources every 15 seconds. A successful probe
+updates resolution, FPS, online status, and last heartbeat. A failed probe
+updates offline status and its safe error message. Status transitions create
+Camera Offline and Camera Reconnected system events.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/cameras` | Authenticated | Assignment-aware camera list and health |
+| `GET /api/cameras/manage` | Administrator | Full camera configuration list |
+| `POST /api/cameras` | Administrator | Add a camera |
+| `PUT /api/cameras/{id}` | Administrator | Edit a camera |
+| `DELETE /api/cameras/{id}` | Administrator | Delete a camera |
+| `PATCH /api/cameras/{id}/enabled` | Administrator | Enable or disable a camera |
+| `POST /api/cameras/{id}/test-connection` | Administrator, Operator | Run a bounded FFprobe test |
+| `GET /api/camera-groups` | Authenticated | List groups |
+| `POST/PUT/DELETE /api/camera-groups` | Administrator | Manage groups |
+
+Administrators can use the Material UI management workspace at
+<http://localhost:3000/manage/cameras>. Operators can run connection tests from
+the normal camera screen. Viewers receive status only for their assigned
+cameras and cannot run probes or mutate configuration.
+
 ## Repository layout
 
 ```text
@@ -213,6 +257,7 @@ infra/
 scripts/
   verify-foundation.ps1    End-to-end Step 1 verification
   verify-auth.ps1          End-to-end Step 2 authorization verification
+  verify-camera-health.ps1 End-to-end Step 3 camera/health verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -235,6 +280,9 @@ The Step 1 guide is:
 The Step 2 guide is:
 [`docs/steps/step-02-authentication-roles-assignments.html`](docs/steps/step-02-authentication-roles-assignments.html).
 
+The Step 3 guide is:
+[`docs/steps/step-03-camera-management-health.html`](docs/steps/step-03-camera-management-health.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -247,7 +295,7 @@ color treatment.
 
 ## Scope
 
-Camera CRUD/health, dashboards, live playback UI, recording workflows, the full
-event/alarm lifecycle, user administration, search, and audit-log management
-remain gated by the approved plan. The raw local MediaMTX HLS port is not yet
-protected; media authorization hardening is scheduled for Step 10.
+Dashboards, live playback UI, recording workflows, the full event/alarm
+lifecycle, user administration, search, and audit-log management remain gated
+by the approved plan. The raw local MediaMTX HLS port is not yet protected;
+media authorization hardening is scheduled for Step 10.

@@ -6,7 +6,9 @@ namespace Vms.Api.Domain;
 public enum SystemEventType
 {
     UserLogin,
-    UserLogout
+    UserLogout,
+    CameraOffline,
+    CameraReconnected
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<EventSeverity>))]
