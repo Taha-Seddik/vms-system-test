@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Step 6 implementation guide for real manual, continuous, and event VMS recordings.">
+    <title>Step 6 - Real recording workflows</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html"><span class="brand-mark">VMS</span><span>Implementation Notes</span></a>
+        <span class="topbar-meta">Step 06 of 10</span>
+      </div>
+    </header>
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#modes">Three recording modes</a></li>
+          <li><a href="#flow">Recording lifecycle</a></li>
+          <li><a href="#layers">Backend layers</a></li>
+          <li><a href="#dependencies">Dependencies</a></li>
+          <li><a href="#safety">Media and process safety</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">Approved implementation step 06 <span class="badge">Completed and verified</span></div>
+          <h1>Real recording workflows</h1>
+          <p class="lede">
+            Manual, continuous, and simulated-motion recording now run real
+            FFmpeg processes against the RTSP feeds. Every successful segment
+            is a finalized, FFprobe-validated H.264 MP4 on the persistent
+            Docker volume with matching PostgreSQL metadata and system events.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Engine:</strong> FFmpeg</span>
+            <span><strong>Validation:</strong> FFprobe</span>
+            <span><strong>Storage:</strong> Docker named volume</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            Recording cannot be a fake status change. The assessment requires
+            continuous, manual, and event-triggered recording. Motion may be
+            simulated, but that simulation must create a real event and trigger
+            a real playable recording.
+          </p>
+          <div class="grid three">
+            <article class="card"><h3>Capture</h3><p>Read the actual camera RTSP stream with FFmpeg and write MP4 media.</p></article>
+            <article class="card"><h3>Persist</h3><p>Store lifecycle, ownership, duration, size, failure, and trigger linkage in PostgreSQL.</p></article>
+            <article class="card"><h3>Prove</h3><p>Open every completed output with FFprobe before declaring it successful.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>Manual start and explicit stop with graceful MP4 finalization.</li>
+            <li>Continuous recording as consecutive, independently playable 10-second MP4 segments.</li>
+            <li>Simulated motion creates a Motion Detected event and an automatic eight-second event recording.</li>
+            <li>One active recording mode per camera; conflicts return HTTP 409.</li>
+            <li>Operator/Administrator policy on commands; Viewer receives HTTP 403.</li>
+            <li>Persistent metadata, GUID file names, file size, media duration, owner, and trigger event.</li>
+            <li>Camera REC state and command-center active count update during the process.</li>
+            <li>Recording Started, Stopped, and Failure events update the realtime dashboard.</li>
+            <li>API restart reconciliation marks interrupted rows Failed and clears stale REC state.</li>
+            <li>Failed or header-only outputs are never reported as successful recordings.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="modes">
+          <h2>3. Three recording modes</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Mode</th><th>Start</th><th>Stop</th><th>Output</th></tr></thead>
+              <tbody>
+                <tr><td>Manual</td><td>Operator/Admin action</td><td>Explicit Stop</td><td>One finalized MP4</td></tr>
+                <tr><td>Continuous</td><td>Operator/Admin action</td><td>Explicit Stop</td><td>Sequence of 10-second MP4 segments</td></tr>
+                <tr><td>Event</td><td>Simulate Motion</td><td>Automatic after 8 seconds</td><td>One MP4 linked to the motion event</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">
+            <span class="callout-title">Why continuous recording uses segments</span>
+            <p>A single never-ending MP4 is not safely playable until its metadata is finalized. Short segments create durable playable files continuously and reduce loss if a process stops unexpectedly.</p>
+          </div>
+        </section>
+
+        <section class="section" id="flow">
+          <h2>4. Recording lifecycle</h2>
+          <div class="architecture" aria-label="Recording workflow">
+            <div class="flow-row">
+              <div class="flow-node"><strong>Authorized request</strong><small>camera + mode</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>Recording row</strong><small>state: Recording</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node accent"><strong>FFmpeg</strong><small>RTSP to GUID.mp4</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>FFprobe</strong><small>duration + stream</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>Final metadata</strong><small>Completed or Failed</small></div>
+            </div>
+          </div>
+          <ol class="numbered-list">
+            <li>The service verifies the camera exists, is enabled and Online, and has no active recording.</li>
+            <li>PostgreSQL receives a Recording row before process start; camera state changes to Recording.</li>
+            <li>FFmpeg receives safe argument-list values and copies H.264 from RTSP into a GUID-named MP4.</li>
+            <li>A stop request gives short captures a six-second minimum window, then sends FFmpeg <code>q</code> to finalize MP4 metadata.</li>
+            <li>FFprobe must find a video stream and positive duration before the row becomes Completed.</li>
+            <li>The camera returns to NotRecording and a success or critical failure event is published.</li>
+          </ol>
+        </section>
+
+        <section class="section" id="layers">
+          <h2>5. Backend layers</h2>
+          <pre class="file-tree">Controllers/
+  RecordingsController.cs          HTTP routes, policies, status codes
+Services/
+  RecordingService.cs             use-case facade and queries
+  RecordingCoordinator.cs         lifecycle and concurrency ownership
+  FfmpegRecordingProcessRunner.cs safe FFmpeg process adapter
+  FfprobeRecordingMediaInspector.cs playable-media validation
+Models/
+  RecordingModels.cs              API DTOs and configuration
+Domain/
+  RecordingEnums.cs               modes and lifecycle states
+  Entities/Recording.cs           persistent recording metadata
+Data/
+  VmsDbContext.cs                 EF mapping and relationships
+  Migrations/*AddRecording*       PostgreSQL schema upgrade</pre>
+          <p class="section-intro space-top">
+            The coordinator is a singleton hosted service because it must own
+            running processes across HTTP requests. Database work uses a fresh
+            scoped context for each lifecycle transition.
+          </p>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>6. Recording dependencies</h2>
+          <div class="grid three">
+            <article class="card">
+              <h3>FFmpeg</h3>
+              <p>Connects to RTSP, copies the H.264 video stream, and finalizes MP4 files. It is installed inside the API image.</p>
+            </article>
+            <article class="card">
+              <h3>FFprobe</h3>
+              <p>Reopens finished files and proves a real video stream and positive media duration exist.</p>
+            </article>
+            <article class="card">
+              <h3>PostgreSQL + volume</h3>
+              <p>PostgreSQL stores searchable metadata; the Docker named volume stores media across container recreation.</p>
+            </article>
+          </div>
+          <div class="callout success">
+            <span class="callout-title">No new host installation is required.</span>
+            <p>Docker builds FFmpeg and FFprobe into the API container. The existing one-command <code>docker compose up --build -d</code> startup remains sufficient.</p>
+          </div>
+        </section>
+
+        <section class="section" id="safety">
+          <h2>7. Media and process safety</h2>
+          <dl class="definition-list">
+            <dt>No shell</dt><dd>FFmpeg arguments are added individually; camera URLs are never interpolated into a shell command.</dd>
+            <dt>Safe names</dt><dd>The server creates file names from GUIDs. A user cannot choose a disk path.</dd>
+            <dt>Graceful stop</dt><dd>FFmpeg receives <code>q</code>, followed by a timeout and forced kill only if necessary.</dd>
+            <dt>Credential safety</dt><dd>RTSP credentials are redacted from persisted failures and logs.</dd>
+            <dt>Real validation</dt><dd>FFprobe reads every output; file existence or byte count alone is insufficient.</dd>
+            <dt>Persistent volume</dt><dd><code>recording-data</code> survives normal container recreation and API restart.</dd>
+          </dl>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important code</h2>
+          <div class="code-block">
+            <div class="code-header"><strong>RecordingsController.cs</strong><span>assessment workflows</span></div>
+            <pre><code>[Authorize(Policy = AppPolicies.OperatorOrAdministrator)]
+[HttpPost("cameras/{cameraId}/recordings/manual/start")]
+[HttpPost("cameras/{cameraId}/recordings/continuous/start")]
+[HttpPost("cameras/{cameraId}/motion/simulate")]
+[HttpPost("cameras/{cameraId}/recordings/stop")]</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><strong>FfmpegRecordingProcessRunner.cs</strong><span>real media process</span></div>
+            <pre><code>startInfo.ArgumentList.Add("-rtsp_transport");
+startInfo.ArgumentList.Add("tcp");
+startInfo.ArgumentList.Add("-i");
+startInfo.ArgumentList.Add(request.SourceUrl);
+startInfo.ArgumentList.Add("-c:v");
+startInfo.ArgumentList.Add("copy");
+startInfo.ArgumentList.Add("-movflags");
+startInfo.ArgumentList.Add("+faststart");</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><strong>Recording metadata</strong><span>what survives restart</span></div>
+            <pre><code>public RecordingMode Mode { get; set; }
+public RecordingState State { get; set; }
+public required string FileName { get; set; }
+public double? DurationSeconds { get; set; }
+public long? FileSizeBytes { get; set; }
+public string? FailureReason { get; set; }
+public Guid? TriggerEventId { get; set; }</code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <div class="stat-grid">
+            <div class="stat"><strong>25/25</strong><span>backend tests passed</span></div>
+            <div class="stat"><strong>3 modes</strong><span>real FFmpeg output</span></div>
+            <div class="stat"><strong>H.264</strong><span>FFprobe-confirmed</span></div>
+            <div class="stat"><strong>8/8</strong><span>containers healthy</span></div>
+          </div>
+          <ul class="checklist">
+            <li>Manual recording started, rejected a conflict, stopped, and produced positive duration and file size.</li>
+            <li>FFprobe opened the manual MP4 and confirmed a decodable H.264 video stream.</li>
+            <li>Simulated motion persisted a trigger ID and automatically completed a real event MP4.</li>
+            <li>Continuous mode created at least two finalized, independently FFprobe-readable segments.</li>
+            <li>An unavailable RTSP source created a real Failed row and command-center failure, then the camera was restored.</li>
+            <li>The Viewer received HTTP 403 for a recording start request.</li>
+            <li>All migrations created the recording schema in a temporary clean PostgreSQL database.</li>
+            <li>Fifteen completed rows and playable media remained available after an API restart.</li>
+            <li><code>dotnet test Vms.slnx --no-restore</code> passed all 25 backend tests.</li>
+            <li><code>scripts/verify-live-recording.ps1</code> passed against Docker, PostgreSQL, MediaMTX, FFmpeg, and FFprobe.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>10. Boundaries and next step</h2>
+          <p>
+            Step 6 creates and validates files but does not expose playback or
+            download endpoints or keyframe thumbnails; those are Step 7.
+            Continuous segments are ten seconds for assessment demonstration.
+            Motion is explicitly simulated rather than AI-based, as approved.
+          </p>
+          <div class="callout">
+            <span class="callout-title">Important before Step 7</span>
+            <p>The database stores only server-generated file names. Step 7 must resolve them inside the configured recording root, authorize the user, and never accept a client-provided filesystem path.</p>
+          </div>
+          <div class="callout warning">
+            <span class="callout-title">Next: playback and keyframes, after review.</span>
+            <p>Step 7 will add browse/filter, secure playback, seeking, speed control, snapshots, download, and JPEG keyframes every 30 seconds. No Step 7 implementation has started.</p>
+          </div>
+        </section>
+        <footer class="doc-footer">
+          <a href="step-05-multi-camera-live-monitoring.html">← Step 05</a>
+          <span>VMS full-stack assessment · Step 06</span>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

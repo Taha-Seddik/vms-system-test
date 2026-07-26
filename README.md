@@ -3,11 +3,12 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Steps 1 through 4**: the application/media
+The current repository contains **Steps 1 through 6**: the application/media
 foundation, Identity-based authentication and role authorization, Viewer
 camera assignments, persistent camera management, FFprobe connection testing,
 automatic health monitoring, heartbeats, connectivity events, and a real-time
-operational command center.
+operational command center, multi-camera HLS monitoring, and real FFmpeg
+recording workflows.
 
 ## Architecture
 
@@ -176,6 +177,18 @@ actual recording-volume capacity, active-user and uptime metrics, alarm and
 incident classification, and a real SignalR notification caused by a real
 FFprobe camera test. Its temporary failure event is removed automatically.
 
+Verify Steps 5 and 6 live monitoring access and real recording media:
+
+```powershell
+.\scripts\verify-live-recording.ps1
+```
+
+The combined script checks Viewer assignments and recording denial, all four
+online wall cameras, manual recording and mode conflicts, automatic
+motion-event recording, multiple continuous segments, actual H.264 MP4 media
+through FFprobe, a real unavailable-source failure, command-center failure
+visibility, and camera-source recovery.
+
 Local source checks:
 
 ```powershell
@@ -286,6 +299,42 @@ The dashboard uses these measurable definitions:
 | `GET /api/command-center` | Administrator, Operator | Complete dashboard snapshot |
 | `/hubs/command-center` | Administrator, Operator | SignalR snapshot-invalidation notifications |
 
+## Step 5 multi-camera live monitoring
+
+The live-monitoring workspace at <http://localhost:3000/cameras> supports
+1/4/9/16 layouts. HLS.js attaches each MediaMTX playlist to an HTML video
+element, with native HLS fallback where available. Every populated tile shows
+camera identity, connection and recording state, fullscreen, 1x/1.5x/2x
+digital zoom, and a current-frame PNG snapshot. Empty 9/16 cells are shown
+explicitly because the assessment uses four demo cameras.
+
+The camera-list API remains the authorization boundary: Administrators and
+Operators receive all cameras, while the seeded Viewer receives only camera-1
+and camera-2. Recording controls are absent for Viewers and independently
+protected by the API.
+
+## Step 6 real recording workflows
+
+Administrators and Operators can start manual or continuous recording, simulate
+motion, and stop a recording from the live wall. FFmpeg reads the actual RTSP
+source and writes GUID-named MP4 files to the persistent `recording-data`
+volume. FFprobe must confirm a video stream, positive duration, and file size
+before metadata is marked Completed.
+
+Continuous recording produces configurable ten-second playable segments.
+Simulated motion persists a real Motion Detected event and triggers an
+automatic configurable eight-second event recording. A camera can have only
+one active mode; conflicts return `409`. Failures are persisted as critical
+recording-failure events and appear on the command center.
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `GET /api/recordings` | Administrator, Operator | Recent recording metadata, optionally filtered by camera |
+| `POST /api/cameras/{id}/recordings/manual/start` | Administrator, Operator | Start manual FFmpeg capture |
+| `POST /api/cameras/{id}/recordings/continuous/start` | Administrator, Operator | Start segmented continuous capture |
+| `POST /api/cameras/{id}/motion/simulate` | Administrator, Operator | Persist motion event and start real event capture |
+| `POST /api/cameras/{id}/recordings/stop` | Administrator, Operator | Gracefully finalize the active capture |
+
 ## Repository layout
 
 ```text
@@ -308,6 +357,7 @@ scripts/
   verify-auth.ps1          End-to-end Step 2 authorization verification
   verify-camera-health.ps1 End-to-end Step 3 camera/health verification
   verify-command-center.ps1 End-to-end Step 4 dashboard/SignalR verification
+  verify-live-recording.ps1 End-to-end Steps 5/6 access and media verification
 docs/
   index.html               HTML implementation documentation home
   assets/                  Shared documentation styling
@@ -336,6 +386,12 @@ The Step 3 guide is:
 The Step 4 guide is:
 [`docs/steps/step-04-command-center-dashboard.html`](docs/steps/step-04-command-center-dashboard.html).
 
+The Step 5 guide is:
+[`docs/steps/step-05-multi-camera-live-monitoring.html`](docs/steps/step-05-multi-camera-live-monitoring.html).
+
+The Step 6 guide is:
+[`docs/steps/step-06-real-recording-workflows.html`](docs/steps/step-06-real-recording-workflows.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -348,9 +404,7 @@ color treatment.
 
 ## Scope
 
-Live playback UI, recording workflows, the full event/alarm lifecycle, user
+Recording playback/keyframes, the full event/alarm lifecycle, user
 administration, search, and audit-log management remain gated by the approved
-plan. The Step 4 dashboard truthfully reports the currently implemented
-recording state, so recording counts and failures will become richer in Step 6.
-The raw local MediaMTX HLS port is not yet protected; media authorization
+plan. The raw local MediaMTX HLS port is not yet protected; media authorization
 hardening is scheduled for Step 10.

@@ -97,6 +97,12 @@ public sealed class CameraManagementService(
                 $"Camera '{id}' was not found.");
         }
 
+        if (camera.RecordingStatus == CameraRecordingStatus.Recording)
+        {
+            return CameraMutationResult.Conflict(
+                "Stop the active recording before editing this camera.");
+        }
+
         var validationError = await ValidateConfigurationAsync(
             request.RtspUrl,
             request.HlsPath,
@@ -146,6 +152,13 @@ public sealed class CameraManagementService(
                 $"Camera '{id}' was not found.");
         }
 
+        if (!isEnabled
+            && camera.RecordingStatus == CameraRecordingStatus.Recording)
+        {
+            return CameraMutationResult.Conflict(
+                "Stop the active recording before disabling this camera.");
+        }
+
         camera.IsEnabled = isEnabled;
         camera.ConnectionStatus = isEnabled
             ? CameraConnectionStatus.Unknown
@@ -171,6 +184,15 @@ public sealed class CameraManagementService(
         {
             return CameraMutationResult.NotFound(
                 $"Camera '{id}' was not found.");
+        }
+
+        if (camera.RecordingStatus == CameraRecordingStatus.Recording
+            || await database.Recordings.AnyAsync(
+                recording => recording.CameraId == id,
+                cancellationToken))
+        {
+            return CameraMutationResult.Conflict(
+                "A camera with active or historical recordings cannot be deleted.");
         }
 
         database.Cameras.Remove(camera);

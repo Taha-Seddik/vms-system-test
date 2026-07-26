@@ -341,6 +341,145 @@ body {
     #f8fafc;
 }
 
+.live-monitor-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.live-wall {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.live-wall-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.live-wall-4,
+.live-wall-9,
+.live-wall-16 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.live-wall-9,
+.live-wall-16 {
+  gap: 0.55rem;
+}
+
+.live-wall-empty {
+  display: grid;
+  min-width: 0;
+  min-height: 230px;
+  place-items: center;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-camera-tile {
+  min-width: 0;
+  overflow: hidden;
+  border-color: #dbe3ee;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgb(15 23 42 / 7%);
+}
+
+.live-camera-tile.is-recording {
+  border-color: #fca5a5;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 12%);
+}
+
+.live-video-frame {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  background: #07101e;
+}
+
+.live-wall-9 .live-video-frame,
+.live-wall-16 .live-video-frame {
+  min-height: 180px;
+}
+
+.live-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  object-fit: cover;
+  transform-origin: center;
+  transition: transform 180ms ease;
+}
+
+.live-video-status {
+  position: absolute;
+  z-index: 2;
+  top: 0.7rem;
+  left: 0.7rem;
+}
+
+.live-video-error,
+.live-video-offline {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #cbd5e1;
+  background: rgb(7 16 30 / 78%);
+  font-size: 0.78rem;
+}
+
+.live-camera-details.MuiCardContent-root {
+  padding: 1rem;
+}
+
+.live-camera-tile:fullscreen {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: #07101e;
+}
+
+.live-camera-tile:fullscreen .live-video-frame {
+  flex: 1;
+}
+
+.live-camera-tile:fullscreen .live-camera-details {
+  background: #ffffff;
+}
+
+.recent-recordings-panel {
+  border-color: #e2e8f0;
+}
+
+.recording-output-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.recording-output-row {
+  display: flex;
+  min-width: 0;
+  padding: 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
 .metric-card {
   max-width: 360px;
   border: 1px solid #dbeafe;
@@ -611,6 +750,18 @@ body {
   }
 
   .command-camera-wall {
+    grid-template-columns: 1fr;
+  }
+
+  .live-monitor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .live-wall-4,
+  .live-wall-9,
+  .live-wall-16,
+  .recording-output-grid {
     grid-template-columns: 1fr;
   }
 }

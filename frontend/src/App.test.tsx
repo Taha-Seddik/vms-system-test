@@ -150,12 +150,17 @@ describe('authentication and authorization UI', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign in securely/i }))
 
     expect(
-      await screen.findByRole('heading', { name: /accessible cameras/i }),
+      await screen.findByRole('heading', { name: /live monitoring/i }),
     ).toBeInTheDocument()
     expect(await screen.findByText('Entrance')).toBeInTheDocument()
     expect(screen.getByText('Loading Bay')).toBeInTheDocument()
     expect(screen.queryByText('Warehouse')).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /activity/i }))
+      .not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /16 camera layout/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^manual$/i }))
       .not.toBeInTheDocument()
   })
 
@@ -176,12 +181,57 @@ describe('authentication and authorization UI', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByRole('heading', { name: /accessible cameras/i }),
+        screen.getByRole('heading', { name: /live monitoring/i }),
       ).toBeInTheDocument(),
     )
     expect(
       screen.queryByRole('heading', { name: /authentication activity/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows recording controls to an Administrator on the live wall', async () => {
+    sessionStorage.setItem(
+      'vms-auth-session',
+      JSON.stringify(administratorLogin),
+    )
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/api/auth/me')) {
+        return Response.json(administratorLogin.user)
+      }
+      if (url.endsWith('/api/cameras/accessible')) {
+        return Response.json([
+          {
+            id: 'camera-1',
+            name: 'Entrance',
+            location: 'Main entrance',
+            hlsUrl: '/camera-1/index.m3u8',
+            connectionStatus: 'Online',
+            recordingStatus: 'NotRecording',
+            isEnabled: true,
+            resolution: '640x360',
+          },
+        ])
+      }
+      if (url.includes('/api/recordings?')) {
+        return Response.json([])
+      }
+      return new Response(null, { status: 404 })
+    })
+
+    renderApp('/cameras')
+
+    expect(
+      await screen.findByRole('heading', { name: /live monitoring/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^manual$/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^continuous$/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /simulate motion/i }))
+      .toBeInTheDocument()
+    expect(screen.getByText(/no recordings have been created/i))
+      .toBeInTheDocument()
   })
 
   it('loads the Administrator camera-management workspace', async () => {

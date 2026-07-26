@@ -58,6 +58,11 @@ public static class ServiceCollectionExtensions
                 options => options.CriticalPercent > options.WarningPercent,
                 "Critical storage percentage must be greater than the warning percentage.")
             .ValidateOnStart();
+        services
+            .AddOptions<RecordingOptions>()
+            .Bind(configuration.GetSection(RecordingOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddScoped<AuthenticationService>();
         services.AddScoped<CameraAccessService>();
@@ -65,6 +70,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CameraHealthService>();
         services.AddScoped<CameraManagementService>();
         services.AddScoped<CommandCenterService>();
+        services.AddScoped<RecordingService>();
         services.AddScoped<SessionValidationService>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<ApplicationUptime>();
@@ -72,8 +78,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<DashboardUpdatePublisher>();
         services.AddSingleton<IStorageMetricsProvider, FileSystemStorageMetricsProvider>();
         services.AddSingleton<ICameraProbe, FfprobeCameraProbe>();
+        services.AddSingleton<IRecordingMediaInspector, FfprobeRecordingMediaInspector>();
+        services.AddSingleton<IRecordingProcessRunner, FfmpegRecordingProcessRunner>();
+        services.AddSingleton<RecordingCoordinator>();
         services.AddSingleton<JwtTokenService>();
         services.AddHostedService<CameraHealthMonitor>();
+        services.AddHostedService(provider =>
+            provider.GetRequiredService<RecordingCoordinator>());
 
         return services;
     }

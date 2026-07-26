@@ -41,4 +41,6 @@ public sealed class Camera
     public DateTimeOffset UpdatedAt { get; set; }
 
     public ICollection<UserCameraAssignment> UserAssignments { get; set; } = [];
+
+    public ICollection<Recording> Recordings { get; set; } = [];
 }

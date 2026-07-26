@@ -9,6 +9,9 @@ public enum SystemEventType
     UserLogout,
     CameraOffline,
     CameraReconnected,
+    MotionDetected,
+    RecordingStarted,
+    RecordingStopped,
     RecordingFailure
 }
 

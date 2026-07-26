@@ -115,6 +115,9 @@ services:
       RecordingStorage__Path: /var/lib/vms/recordings
       RecordingStorage__WarningPercent: ${STORAGE_WARNING_PERCENT:-80}
       RecordingStorage__CriticalPercent: ${STORAGE_CRITICAL_PERCENT:-90}
+      Recording__ContinuousSegmentSeconds: ${CONTINUOUS_SEGMENT_SECONDS:-10}
+      Recording__EventDurationSeconds: ${EVENT_RECORDING_SECONDS:-8}
+      Recording__MinimumCaptureSeconds: ${MINIMUM_CAPTURE_SECONDS:-6}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:

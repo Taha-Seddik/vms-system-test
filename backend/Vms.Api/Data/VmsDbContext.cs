@@ -19,6 +19,8 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
 
     public DbSet<SystemEvent> SystemEvents => Set<SystemEvent>();
 
+    public DbSet<Recording> Recordings => Set<Recording>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -104,5 +106,20 @@ public sealed class VmsDbContext(DbContextOptions<VmsDbContext> options)
         systemEvent.Property(item => item.Status).HasConversion<string>().HasMaxLength(32);
         systemEvent.HasIndex(item => item.Timestamp);
         systemEvent.HasIndex(item => new { item.Type, item.Timestamp });
+
+        var recording = modelBuilder.Entity<Recording>();
+        recording.HasKey(item => item.Id);
+        recording.Property(item => item.CameraId).HasMaxLength(100);
+        recording.Property(item => item.Mode).HasConversion<string>().HasMaxLength(32);
+        recording.Property(item => item.State).HasConversion<string>().HasMaxLength(32);
+        recording.Property(item => item.FileName).HasMaxLength(100).IsRequired();
+        recording.Property(item => item.FailureReason).HasMaxLength(1000);
+        recording.HasIndex(item => new { item.CameraId, item.StartedAt });
+        recording.HasIndex(item => new { item.State, item.StartedAt });
+        recording
+            .HasOne(item => item.Camera)
+            .WithMany(item => item.Recordings)
+            .HasForeignKey(item => item.CameraId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

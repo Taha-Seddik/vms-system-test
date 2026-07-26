@@ -9,8 +9,8 @@ current step has been reviewed and explicitly approved.
 | 2. Authentication, roles, and assignments | Completed and verified | ASP.NET Core Identity, layered backend, JWT sessions, three Identity roles, lockout, persisted Viewer assignments, login/logout events, protected React routes, 13 backend tests, 3 frontend tests, live verification script, HTML guide |
 | 3. Camera management and health | Completed and verified | Persistent cameras/groups, Administrator CRUD UI/API, FFprobe tests, automatic status and heartbeat monitoring, offline/reconnected events, 17 backend tests, 4 frontend tests, clean migration proof, live verification script, HTML guide |
 | 4. Command center dashboard | Completed and verified | Aggregated operational snapshot, measurable metrics, recording-volume health, Administrator/Operator dashboard, SignalR invalidation with polling fallback, 20 backend tests, 5 frontend tests, live verification script, HTML guide |
-| 5. Multi-camera live monitoring | Not started | — |
-| 6. Real recording workflows | Not started | — |
+| 5. Multi-camera live monitoring | Completed and verified | 1/4/9/16 HLS wall, assignment enforcement, status/REC overlays, fullscreen, zoom, snapshot, frontend tests, real stream verification, HTML guide |
+| 6. Real recording workflows | Completed and verified | Manual/continuous/event FFmpeg capture, playable FFprobe-validated MP4s, persisted lifecycle/failures, 25 backend tests, live verification, HTML guide |
 | 7. Playback and keyframes | Not started | — |
 | 8. Events, alarms, and incidents | Not started | — |
 | 9. Users, search, and audit logs | Not started | — |
@@ -123,3 +123,46 @@ current step has been reviewed and explicitly approved.
 - `docs/steps/step-04-command-center-dashboard.html` explains requirements,
   metric semantics, architecture, dependencies, code, proof, boundaries, and
   the Step 5 handoff.
+
+## Step 5 acceptance evidence
+
+- The React live wall implements exactly the required 1/4/9/16 layouts, with
+  honest empty cells when four demo cameras do not fill a larger layout.
+- HLS.js attaches each MediaMTX playlist to a native video element and includes
+  native-HLS fallback plus bounded network/media recovery.
+- Tiles expose camera identity, health metadata, REC state, fullscreen,
+  1x/1.5x/2x digital zoom, and current-frame PNG snapshot.
+- Viewer access remains enforced by the assignment-aware backend: the seeded
+  Viewer receives exactly camera-1 and camera-2.
+- All four HLS cameras were probe-confirmed Online; the foundation media check
+  confirms decodable H.264, 640x360, 10 FPS output.
+- Frontend lint passed; all 6 frontend tests passed; production build passed.
+- `docs/steps/step-05-multi-camera-live-monitoring.html` explains the media
+  flow, authorization boundary, controls, dependency, proof, and limitations.
+
+## Step 6 acceptance evidence
+
+- Manual recording starts and stops a real FFmpeg process and produces a
+  finalized MP4 with positive duration and size.
+- Continuous mode creates consecutive configurable ten-second MP4 segments;
+  at least two independently playable segments were verified.
+- Simulated motion creates a persisted Motion Detected event and triggers a
+  real automatically bounded event MP4.
+- FFprobe validates every completed file; empty/header-only fragments are not
+  reported as successful recordings.
+- Only one recording mode may own a camera at once. Operators and
+  Administrators are authorized; Viewer recording requests return `403`.
+- Recording metadata, owner, trigger link, state, duration, size, and safe
+  failure details persist in PostgreSQL. Files persist on the recording volume.
+- All migrations created the recording schema in a temporary clean PostgreSQL
+  database, which was removed after the check.
+- A deliberately broken RTSP source produced a real Failed row and critical
+  command-center recording failure; the source was restored and reconnected.
+- `dotnet test Vms.slnx --no-restore`: 25 passed. Frontend lint, 6 tests, and
+  production build passed.
+- `scripts/verify-live-recording.ps1` passed end to end against the running
+  Docker stack; all eight services were healthy.
+- Fifteen completed recording rows and playable volume media were confirmed
+  unchanged after an API container restart.
+- `docs/steps/step-06-real-recording-workflows.html` explains modes, lifecycle,
+  backend layers, process safety, proof, and the gated Step 7 handoff.

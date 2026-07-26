@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Step 5 implementation guide for the VMS multi-camera HLS live monitoring wall.">
+    <title>Step 5 - Multi-camera live monitoring</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html"><span class="brand-mark">VMS</span><span>Implementation Notes</span></a>
+        <span class="topbar-meta">Step 05 of 10</span>
+      </div>
+    </header>
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#flow">How video reaches the wall</a></li>
+          <li><a href="#access">Viewer assignment rule</a></li>
+          <li><a href="#controls">Tile controls</a></li>
+          <li><a href="#dependency">HLS.js dependency</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">Approved implementation step 05 <span class="badge">Completed and verified</span></div>
+          <h1>Multi-camera live monitoring</h1>
+          <p class="lede">
+            The camera screen is now a real live wall. It plays the four local
+            HLS feeds, supports 1/4/9/16-cell layouts, and gives each populated
+            tile the identity, health, recording state, fullscreen, digital
+            zoom, and PNG snapshot controls requested by the assessment.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Transport:</strong> RTSP to HLS</span>
+            <span><strong>Layouts:</strong> 1 / 4 / 9 / 16</span>
+            <span><strong>Authorization:</strong> Assignment-aware API</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The supplied assessment asks the live-monitoring module to show
+            one, four, nine, or sixteen cameras. Every tile must display live
+            video, camera name, status, recording indicator, fullscreen,
+            digital zoom, and snapshot. Viewers may see only assigned cameras.
+          </p>
+          <div class="grid three">
+            <article class="card"><h3>See</h3><p>Play actual browser-compatible live streams, not placeholder images.</p></article>
+            <article class="card"><h3>Arrange</h3><p>Switch between the four required wall sizes; unused cells remain honest empty slots.</p></article>
+            <article class="card"><h3>Control</h3><p>Operate fullscreen, zoom, and local snapshots independently on each populated tile.</p></article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>Responsive 1, 4, 9, and 16-cell live-wall layout selector.</li>
+            <li>Four real HLS players backed by generated RTSP sources and MediaMTX.</li>
+            <li>Focused-camera selection for the single-camera layout.</li>
+            <li>Camera name, location, connection state, resolution, FPS, and recording indicator.</li>
+            <li>Per-tile fullscreen, three-level digital zoom, and PNG snapshot.</li>
+            <li>Visible reconnecting, decoder-recovery, unsupported-browser, and offline states.</li>
+            <li>Automatic HLS cleanup when a tile changes or unmounts.</li>
+            <li>Viewer filtering enforced by the backend, not merely hidden in React.</li>
+            <li>Operators and Administrators receive recording controls; Viewers do not.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="flow">
+          <h2>3. How live video reaches the wall</h2>
+          <div class="architecture" aria-label="Live stream flow">
+            <div class="flow-row">
+              <div class="flow-node"><strong>FFmpeg generator</strong><small>H.264 test picture</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>MediaMTX</strong><small>accepts RTSP</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node accent"><strong>HLS playlist</strong><small>browser segments</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>HLS.js</strong><small>feeds video element</small></div>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node"><strong>React tile</strong><small>controls and state</small></div>
+            </div>
+          </div>
+          <p class="section-intro space-top">
+            The browser does not connect directly to RTSP. MediaMTX converts
+            each RTSP source into HLS. HLS.js reads the playlist and appends
+            segments to a normal HTML video element. Browsers with native HLS
+            support use that native path instead.
+          </p>
+        </section>
+
+        <section class="section" id="access">
+          <h2>4. Viewer assignment rule</h2>
+          <div class="callout success">
+            <span class="callout-title">Security is applied before rendering.</span>
+            <p>
+              The wall loads <code>GET /api/cameras/accessible</code>. The
+              backend returns all cameras to Administrators and Operators, but
+              only persisted assignments to a Viewer. The seeded Viewer
+              therefore receives exactly camera-1 and camera-2.
+            </p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Role</th><th>Live cameras</th><th>Recording controls</th></tr></thead>
+              <tbody>
+                <tr><td>Administrator</td><td>All accessible cameras</td><td>Shown</td></tr>
+                <tr><td>Operator</td><td>All accessible cameras</td><td>Shown</td></tr>
+                <tr><td>Viewer</td><td>Assigned cameras only</td><td>Not rendered; API also returns 403</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="controls">
+          <h2>5. What each tile control does</h2>
+          <dl class="definition-list">
+            <dt>Fullscreen</dt><dd>Requests browser fullscreen for the complete tile, preserving its overlay and controls.</dd>
+            <dt>Digital zoom</dt><dd>Cycles 1×, 1.5×, and 2× by scaling video inside a clipped tile; it does not pretend the camera has optical/PTZ zoom.</dd>
+            <dt>Snapshot</dt><dd>Draws the current decoded frame to a canvas and downloads a timestamped PNG.</dd>
+            <dt>REC badge</dt><dd>Uses persisted camera recording state, refreshed every five seconds during activity.</dd>
+            <dt>Empty cell</dt><dd>Clearly marks capacity when a 9/16 layout has more cells than the four demo cameras.</dd>
+          </dl>
+        </section>
+
+        <section class="section" id="dependency">
+          <h2>6. New dependency: HLS.js</h2>
+          <p class="section-intro">
+            <code>hls.js 1.6.16</code> is the browser HLS client. Chromium-family
+            browsers do not generally play an HLS playlist directly. It adds
+            manifest parsing, segment loading, Media Source attachment, and
+            bounded network/media recovery. It does not generate, store, or
+            authorize streams. See the
+            <a href="https://github.com/video-dev/hls.js/blob/master/docs/API.md">official HLS.js API guide</a>.
+          </p>
+        </section>
+
+        <section class="section" id="code">
+          <h2>7. Important code</h2>
+          <div class="code-block">
+            <div class="code-header"><strong>frontend/src/components/HlsVideo.tsx</strong><span>HLS attachment and recovery</span></div>
+            <pre><code>if (Hls.isSupported()) {
+  hls = new Hls({
+    lowLatencyMode: true,
+    backBufferLength: 20,
+    liveSyncDurationCount: 2,
+  })
+  hls.loadSource(source)
+  hls.attachMedia(video)
+} else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+  video.src = source
+}</code></pre>
+          </div>
+          <div class="code-block">
+            <div class="code-header"><strong>frontend/src/pages/CamerasPage.tsx</strong><span>required layouts</span></div>
+            <pre><code>const layoutOptions = [1, 4, 9, 16] as const
+type WallLayout = (typeof layoutOptions)[number]
+
+const slots = Array.from({ length: layout }, (_, index) =>
+  layout === 1 ? focusedCamera : cameras[index],
+)</code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>8. Verification evidence</h2>
+          <div class="stat-grid">
+            <div class="stat"><strong>4/4</strong><span>HLS sources online</span></div>
+            <div class="stat"><strong>4</strong><span>required layouts</span></div>
+            <div class="stat"><strong>6/6</strong><span>frontend tests passed</span></div>
+            <div class="stat"><strong>0</strong><span>lint errors</span></div>
+          </div>
+          <ul class="checklist">
+            <li><code>npm run lint</code> completed successfully.</li>
+            <li><code>npm test -- --run</code> passed all six frontend tests, including role-aware recording controls.</li>
+            <li><code>npm run build</code> produced the production frontend bundle.</li>
+            <li><code>verify-live-recording.ps1</code> confirmed all four wall cameras Online and exactly two cameras for the Viewer.</li>
+            <li>The foundation verifier confirms four decodable H.264 HLS feeds at 640×360 and 10 FPS.</li>
+          </ul>
+          <div class="callout warning">
+            <span class="callout-title">Session limitation</span>
+            <p>The in-app browser connection was unavailable, so this includes automated component and real HLS media proof, but not a new interactive visual browser pass.</p>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>9. Boundaries and next step</h2>
+          <p>
+            Digital zoom is client-side cropping. Nine- and sixteen-cell
+            layouts intentionally contain empty cells with four demo cameras.
+            Raw MediaMTX HLS URLs remain local and unprotected until Step 10.
+          </p>
+          <div class="callout">
+            <span class="callout-title">Next: Step 7, only after review.</span>
+            <p>Step 7 will expose completed recordings for browsing and playback, then add seeking, speed, snapshots, downloads, and 30-second keyframes. No Step 7 work has started.</p>
+          </div>
+        </section>
+        <footer class="doc-footer">
+          <span>VMS full-stack assessment · Step 05</span>
+          <a href="step-06-real-recording-workflows.html">Continue to Step 06 →</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

@@ -10,6 +10,9 @@ export type SystemEventType =
   | 'UserLogout'
   | 'CameraOffline'
   | 'CameraReconnected'
+  | 'MotionDetected'
+  | 'RecordingStarted'
+  | 'RecordingStopped'
   | 'RecordingFailure'
 
 export interface DashboardMetrics {

@@ -36,8 +36,8 @@ export function AppLayout() {
   const workspaceItems: NavigationItem[] = hasRole('Viewer')
     ? [
         {
-          label: 'My cameras',
-          description: 'Assigned camera access',
+          label: 'Live monitoring',
+          description: 'Assigned live cameras',
           to: '/cameras',
           icon: 'cameras',
         },
@@ -50,8 +50,8 @@ export function AppLayout() {
           icon: 'command',
         },
         {
-          label: 'Cameras',
-          description: 'Camera health and access',
+          label: 'Live monitoring',
+          description: 'Multi-camera wall',
           to: '/cameras',
           icon: 'cameras',
         },
