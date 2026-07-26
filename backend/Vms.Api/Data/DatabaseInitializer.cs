@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Vms.Api.Domain.Entities;
 using Vms.Api.Domain;
+using Vms.Api.Utils;
 
 namespace Vms.Api.Data;
 
@@ -86,7 +87,7 @@ public static class DatabaseInitializer
         {
             Id = id,
             Username = username,
-            NormalizedUsername = username.ToUpperInvariant(),
+            NormalizedUsername = UsernameNormalizer.Normalize(username),
             DisplayName = displayName,
             PasswordHash = string.Empty,
             Role = role,

@@ -169,6 +169,7 @@
 ├── Domain/
 │   └── Entities/  Users, sessions, assignments, and system events
 ├── Extensions/    DI, JWT setup, policies, claims, and persistence setup
+├── Utils/         Small reusable stateless helpers
 ├── Data/          DbContext, migrations, initialization, and demo IDs
 └── Program.cs     Middleware pipeline and controller mapping only</code></pre>
           <div class="grid two">
@@ -471,7 +472,7 @@ Pop-Location</code></pre>
           <div class="grid two">
             <article class="card">
               <h3>Backend integration tests</h3>
-              <p><strong>9 passed, 0 failed.</strong></p>
+              <p><strong>11 passed, 0 failed.</strong></p>
               <p>
                 Covers anonymous rejection, blank/invalid credentials, all
                 three role boundaries, Viewer filtering, zero-assignment

@@ -5,6 +5,7 @@ using Vms.Api.Data;
 using Vms.Api.Domain;
 using Vms.Api.Domain.Entities;
 using Vms.Api.Models;
+using Vms.Api.Utils;
 
 namespace Vms.Api.Services;
 
@@ -24,7 +25,7 @@ public sealed class AuthenticationService(
             return new LoginResult(null, LoginFailure.InvalidCredentials);
         }
 
-        var normalizedUsername = request.Username.Trim().ToUpperInvariant();
+        var normalizedUsername = UsernameNormalizer.Normalize(request.Username);
         var user = await database.Users
             .Include(item => item.CameraAssignments)
             .SingleOrDefaultAsync(

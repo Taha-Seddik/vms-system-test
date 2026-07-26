@@ -200,6 +200,7 @@ backend/
     Models/                API request/response and configuration models
     Domain/                Business enums and persistent domain entities
     Extensions/            DI, authentication, policies, claims, persistence
+    Utils/                 Small reusable stateless helpers
     Data/                  EF Core context, migrations, and seed data
   Vms.Api.Tests/           API integration tests
 frontend/                  React, TypeScript, Vite, Material UI
