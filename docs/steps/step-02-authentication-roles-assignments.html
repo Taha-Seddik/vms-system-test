@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step 2 implementation guide: JWT authentication, roles, Viewer camera assignments, and user activity."
+    >
+    <title>Step 2 - Authentication, roles, and assignments</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 02 of 10</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#outcome">Completed outcome</a></li>
+          <li><a href="#flow">Authentication flow</a></li>
+          <li><a href="#backend">Backend design</a></li>
+          <li><a href="#assignments">Role and assignment rules</a></li>
+          <li><a href="#frontend">Frontend authorization</a></li>
+          <li><a href="#dependencies">Dependencies</a></li>
+          <li><a href="#code">Important code</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Boundaries and next step</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            Approved implementation step 02
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Authentication, roles, and camera assignments</h1>
+          <p class="lede">
+            Step 2 creates the application's identity boundary: securely hashed
+            credentials, signed and revocable JWT sessions, three assessment
+            roles, server-side Viewer camera filtering, protected React routes,
+            and persisted login/logout activity.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Completed:</strong> 26 July 2026</span>
+            <span><strong>Backend:</strong> ASP.NET Core + EF Core</span>
+            <span><strong>Database:</strong> PostgreSQL migration</span>
+            <span><strong>Frontend:</strong> React Router + Material UI</span>
+          </div>
+        </header>
+
+        <section class="section" id="requirement">
+          <h2>1. Assessment requirement</h2>
+          <p class="section-intro">
+            The assessment requires login-based access for Administrator,
+            Operator, and Viewer users. Authorization must apply to API and
+            frontend behavior, and a Viewer must see only cameras explicitly
+            assigned to that account. Login, logout, and ongoing user activity
+            must also be recorded.
+          </p>
+          <div class="grid three">
+            <article class="card">
+              <h3>Authenticate</h3>
+              <p>
+                Validate credentials without storing plaintext passwords and
+                issue an access token that identifies the user and role.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Authorize</h3>
+              <p>
+                Enforce Administrator, Operator, and Viewer permissions on the
+                server and present only appropriate frontend navigation.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Assign</h3>
+              <p>
+                Persist Viewer-to-camera assignments and filter accessible
+                cameras at the API boundary, not merely with hidden UI.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="outcome">
+          <h2>2. Completed outcome</h2>
+          <ul class="checklist">
+            <li>Three enabled demo identities with assessment roles.</li>
+            <li>ASP.NET Core password hashing using salted PBKDF2 hashes.</li>
+            <li>HMAC-SHA256 JWTs with issuer, audience, expiry, user, role, and session claims.</li>
+            <li>Persisted server sessions, checked on every authenticated request.</li>
+            <li>Immediate token revocation when the user logs out.</li>
+            <li>Administrator-only and Operator-or-Administrator policies.</li>
+            <li>Persisted Viewer assignments for camera-1 and camera-2.</li>
+            <li>Server-filtered accessible-camera response for Viewers.</li>
+            <li>Login/logout system events and last-activity timestamps.</li>
+            <li>Protected React routes, role navigation, login, logout, and session restoration.</li>
+            <li>Initial EF Core migration and automatic migration at API startup.</li>
+            <li>Automated backend, frontend, API, database, and foundation verification.</li>
+          </ul>
+        </section>
+
+        <section class="section" id="flow">
+          <h2>3. Authentication flow</h2>
+          <p class="section-intro">
+            A JWT proves that the API created a token, while the persisted
+            session proves that the token is still allowed. This extra lookup
+            makes logout effective immediately instead of waiting for expiry.
+          </p>
+          <div
+            class="flow-row"
+            role="img"
+            aria-label="Authentication flow from login to verified requests"
+          >
+            <div class="flow-node">
+              <strong>1. Login</strong>
+              <small>Username + password over HTTP in the local stack</small>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node accent">
+              <strong>2. API verifies</strong>
+              <small>PBKDF2 hash + account + Viewer assignment</small>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node">
+              <strong>3. Session + JWT</strong>
+              <small>Database session ID becomes the token JTI</small>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node">
+              <strong>4. Every request</strong>
+              <small>Signature, expiry, role, session, and enabled user checked</small>
+            </div>
+          </div>
+          <div class="callout success space-top">
+            <p class="callout-title">Why use both JWT and a session row?</p>
+            <p>
+              A purely stateless JWT remains valid after logout. The session row
+              allows the API to reject a revoked token immediately and supports
+              active-user and activity metrics required by later dashboard work.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="backend">
+          <h2>4. Backend and database design</h2>
+          <div class="grid two">
+            <article class="card">
+              <h3>Users</h3>
+              <p>
+                Stores normalized unique usernames, display names, password
+                hashes, role, enabled state, creation time, last login, and last
+                activity.
+              </p>
+            </article>
+            <article class="card">
+              <h3>UserSessions</h3>
+              <p>
+                Stores token/session identity, expiry, recent activity, and
+                optional revocation time and reason.
+              </p>
+            </article>
+            <article class="card">
+              <h3>UserCameraAssignments</h3>
+              <p>
+                Uses a composite key of user ID and camera ID so the same camera
+                cannot be assigned twice to one Viewer.
+              </p>
+            </article>
+            <article class="card">
+              <h3>SystemEvents</h3>
+              <p>
+                Records typed login/logout events with timestamp, severity,
+                status, user, camera reference, and description fields that can
+                expand during Step 8.
+              </p>
+            </article>
+          </div>
+
+          <div class="table-wrap space-top">
+            <table>
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Access</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>POST /api/auth/login</code></td>
+                  <td>Anonymous</td>
+                  <td>Verify credentials and create a JWT session.</td>
+                </tr>
+                <tr>
+                  <td><code>POST /api/auth/logout</code></td>
+                  <td>Authenticated</td>
+                  <td>Revoke the current session and write a logout event.</td>
+                </tr>
+                <tr>
+                  <td><code>GET /api/auth/me</code></td>
+                  <td>Authenticated</td>
+                  <td>Return the current enabled user and assignments.</td>
+                </tr>
+                <tr>
+                  <td><code>GET /api/auth/activity</code></td>
+                  <td>Administrator</td>
+                  <td>Return active sessions and recent identity events.</td>
+                </tr>
+                <tr>
+                  <td><code>GET /api/cameras/accessible</code></td>
+                  <td>Authenticated</td>
+                  <td>Return all cameras or the Viewer's assigned subset.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="assignments">
+          <h2>5. Role and assignment rules</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Camera scope</th>
+                  <th>Step 2 UI/API access</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Administrator</td>
+                  <td>All four demo cameras</td>
+                  <td>Cameras, Administrator policy, and activity page</td>
+                </tr>
+                <tr>
+                  <td>Operator</td>
+                  <td>All four demo cameras</td>
+                  <td>Cameras and operational policy; no activity page</td>
+                </tr>
+                <tr>
+                  <td>Viewer</td>
+                  <td>Only camera-1 and camera-2</td>
+                  <td>Cameras only; rejected by Operator/Admin policies</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warning space-top">
+            <p class="callout-title">Mandatory assignment invariant</p>
+            <p>
+              A Viewer with zero assignments cannot sign in. Once signed in,
+              camera IDs are loaded from PostgreSQL and intersected with the
+              known camera catalog. The frontend never decides the Viewer's
+              camera scope.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="frontend">
+          <h2>6. Frontend authorization</h2>
+          <p class="section-intro">
+            React stores the assessment session in browser
+            <code>sessionStorage</code>, validates it with
+            <code>/api/auth/me</code> on startup, attaches the Bearer token to
+            API requests, and clears local state even if logout fails.
+          </p>
+          <div class="grid two">
+            <article class="card">
+              <h3>Protected routes</h3>
+              <p>
+                Anonymous visitors are redirected to login. A nested role guard
+                redirects non-Administrators away from the activity page.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Role-aware navigation</h3>
+              <p>
+                Every user sees accessible cameras. Only Administrators receive
+                the Activity navigation link.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Assessment accounts</h3>
+              <p>
+                Login provides selectable local demo credentials for all three
+                roles, making the permission differences quick to review.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Visible scope</h3>
+              <p>
+                The camera page explains the current role and shows only the
+                camera records returned by the authenticated endpoint.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>7. Dependencies and what they do</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dependency</th>
+                  <th>Role in Step 2</th>
+                  <th>Installation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ASP.NET Core JwtBearer</td>
+                  <td>Parses and validates signed Bearer tokens.</td>
+                  <td>Restored by <code>dotnet restore</code> or Docker build.</td>
+                </tr>
+                <tr>
+                  <td>ASP.NET Core Identity password hasher</td>
+                  <td>Produces salted PBKDF2 password hashes.</td>
+                  <td>Included with the ASP.NET Core shared framework.</td>
+                </tr>
+                <tr>
+                  <td>EF Core + Npgsql</td>
+                  <td>Maps identities, sessions, assignments, and events to PostgreSQL.</td>
+                  <td>Restored by <code>dotnet restore</code>.</td>
+                </tr>
+                <tr>
+                  <td>dotnet-ef local tool</td>
+                  <td>Creates versioned database migrations.</td>
+                  <td><code>dotnet tool restore</code> from repository root.</td>
+                </tr>
+                <tr>
+                  <td>React Router</td>
+                  <td>Provides anonymous, authenticated, and role-guarded routes.</td>
+                  <td>Restored by <code>npm ci</code> or Docker build.</td>
+                </tr>
+                <tr>
+                  <td>PostgreSQL</td>
+                  <td>Persists password hashes, permissions, sessions, and activity.</td>
+                  <td>Already supplied by Docker Compose from Step 1.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout success space-top">
+            <p class="callout-title">No additional host installation is required</p>
+            <p>
+              If Step 1 prerequisites are installed, use
+              <code>docker compose up --build -d</code>. NuGet and npm
+              dependencies are restored inside the build containers. Local
+              tests still require the .NET 10 SDK and Node.js/npm described in
+              the README.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="code">
+          <h2>8. Important implementation code</h2>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>Revocable JWT validation</strong>
+              <span>Auth/AuthServiceCollectionExtensions.cs</span>
+            </div>
+            <pre><code>options.TokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidIssuer = jwtOptions.Issuer,
+    ValidateAudience = true,
+    ValidAudience = jwtOptions.Audience,
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(
+        Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+    ValidateLifetime = true,
+    ClockSkew = TimeSpan.FromSeconds(30)
+};
+
+options.Events = new JwtBearerEvents
+{
+    OnTokenValidated = ValidateSessionAsync
+};</code></pre>
+          </div>
+
+          <div class="code-block space-top">
+            <div class="code-header">
+              <strong>Viewer assignment filtering</strong>
+              <span>Cameras/AccessibleCameraEndpoints.cs</span>
+            </div>
+            <pre><code>if (!principal.IsInRole(nameof(AppRole.Viewer)))
+{
+    return Results.Ok(DemoCameraCatalog.All);
+}
+
+var assignedIds = await database.UserCameraAssignments
+    .Where(item =&gt; item.UserId == userId)
+    .Select(item =&gt; item.CameraId)
+    .ToListAsync(cancellationToken);
+
+var accessible = DemoCameraCatalog.All
+    .Where(camera =&gt; assignedIds.Contains(camera.Id))
+    .ToArray();</code></pre>
+          </div>
+
+          <div class="code-block space-top">
+            <div class="code-header">
+              <strong>Frontend role gate</strong>
+              <span>auth/ProtectedRoute.tsx</span>
+            </div>
+            <pre><code>if (!user) {
+  return &lt;Navigate to="/login" replace state={{ from: location }} /&gt;
+}
+
+if (allowedRoles &amp;&amp; !allowedRoles.includes(user.role)) {
+  return &lt;Navigate to="/" replace /&gt;
+}
+
+return &lt;Outlet /&gt;</code></pre>
+          </div>
+
+          <div class="code-block space-top">
+            <div class="code-header">
+              <strong>Reproducible verification</strong>
+              <span>PowerShell</span>
+            </div>
+            <pre><code>docker compose up --build -d
+.\scripts\verify-auth.ps1
+
+dotnet test Vms.slnx
+
+Push-Location frontend
+npm ci
+npm run lint
+npm test
+npm run build
+Pop-Location</code></pre>
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>9. Verification evidence</h2>
+          <div class="grid two">
+            <article class="card">
+              <h3>Backend integration tests</h3>
+              <p><strong>8 passed, 0 failed.</strong></p>
+              <p>
+                Covers anonymous rejection, invalid password, all three role
+                boundaries, Viewer filtering, zero-assignment denial, logout
+                revocation, and activity events.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Frontend component tests</h3>
+              <p><strong>3 passed, 0 failed.</strong></p>
+              <p>
+                Covers anonymous redirect, Viewer login/camera rendering, and
+                rejection of Viewer navigation to the Administrator page.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Production builds</h3>
+              <p><strong>Backend and frontend passed.</strong></p>
+              <p>
+                .NET built with 0 warnings and 0 errors. TypeScript, Vite, and
+                ESLint completed successfully.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Live Docker verification</h3>
+              <p><strong>All eight services healthy.</strong></p>
+              <p>
+                The live script proved role HTTP status codes, exact Viewer
+                camera IDs, token revocation, activity events, non-plaintext
+                passwords, and two persisted assignments.
+              </p>
+            </article>
+          </div>
+          <div class="callout success space-top">
+            <p class="callout-title">Foundation regression check</p>
+            <p>
+              <code>verify-foundation.ps1</code> passed again after Step 2:
+              API/frontend health, four HLS playlists, H.264 640x360 at 10 FPS,
+              and all Compose health checks remain intact.
+            </p>
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>10. Boundaries and what comes next</h2>
+          <div class="callout warning">
+            <p class="callout-title">Intentional Step 2 boundaries</p>
+            <p>
+              Camera records remain the four static foundation entries until
+              Step 3 adds camera/group CRUD and health. HLS playback remains
+              outside the UI until Step 5. MediaMTX's raw HLS port is still a
+              local development endpoint; final media URL protection and secret
+              hardening are explicitly scheduled for Step 10. Session storage
+              is a pragmatic assessment choice and requires normal XSS
+              prevention.
+            </p>
+          </div>
+          <h3 class="space-top">Before proceeding to Step 3, understand:</h3>
+          <ul class="checklist">
+            <li>The API, not React, is the authority for roles and assignments.</li>
+            <li>A JWT is accepted only while its PostgreSQL session remains active.</li>
+            <li>Viewer assignment records already use stable camera string IDs.</li>
+            <li>Step 3 must replace the static catalog without weakening the same filter.</li>
+            <li>Login/logout events are intentionally the first members of the future event model.</li>
+          </ul>
+          <div class="callout success space-top">
+            <p class="callout-title">Next gate: Step 3 - Camera management and health</p>
+            <p>
+              The next approved step will add camera groups and camera CRUD,
+              enable/disable operations, FFprobe connection testing,
+              online/offline monitoring, last heartbeat, and offline/reconnected
+              events. No Step 3 implementation has started.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

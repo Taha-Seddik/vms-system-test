@@ -3,8 +3,9 @@
 A lean full-stack Video Management System proof of concept built in gated steps
 from the supplied technical assessment.
 
-The current repository contains **Step 1 only**: the application skeleton and a
-local media pipeline with four generated RTSP cameras exposed as HLS.
+The current repository contains **Steps 1 and 2**: the application/media
+foundation plus authentication, role authorization, Viewer camera assignments,
+and login/logout activity.
 
 ## Architecture
 
@@ -157,6 +158,38 @@ npm run build
 Pop-Location
 ```
 
+## Step 2 demo accounts
+
+These accounts are seeded only when the user table is empty:
+
+| Role | Username | Password | Camera access |
+|---|---|---|---|
+| Administrator | `admin` | `Admin123!` | All four cameras plus activity |
+| Operator | `operator` | `Operator123!` | All four cameras |
+| Viewer | `viewer` | `Viewer123!` | Assigned `camera-1` and `camera-2` only |
+
+The passwords above are local assessment credentials. PostgreSQL stores only
+salted PBKDF2 hashes. JWT signing configuration can be overridden through the
+`JWT_ISSUER`, `JWT_AUDIENCE`, and `JWT_SIGNING_KEY` values in an untracked
+`.env` file.
+
+Verify authentication, roles, assignments, revocation, activity, and database
+storage against the running Docker stack:
+
+```powershell
+.\scripts\verify-auth.ps1
+```
+
+Authentication endpoints:
+
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `POST /api/auth/login` | Anonymous | Verify credentials and create a session/JWT |
+| `POST /api/auth/logout` | Authenticated | Revoke the current session |
+| `GET /api/auth/me` | Authenticated | Return current user and assignments |
+| `GET /api/auth/activity` | Administrator | Active sessions and login/logout events |
+| `GET /api/cameras/accessible` | Authenticated | Return the role-authorized camera list |
+
 ## Repository layout
 
 ```text
@@ -188,6 +221,9 @@ verification evidence, limitations, and next-step context.
 The Step 1 guide is:
 [`docs/steps/step-01-repository-media-foundation.html`](docs/steps/step-01-repository-media-foundation.html).
 
+The Step 2 guide is:
+[`docs/steps/step-02-authentication-roles-assignments.html`](docs/steps/step-02-authentication-roles-assignments.html).
+
 ## Development configuration
 
 Development defaults are intentionally non-secret. Do not reuse them outside a
@@ -200,6 +236,7 @@ color treatment.
 
 ## Scope
 
-Authentication, camera CRUD, dashboards, live playback UI, recording workflows,
-events, users, search, and audit logs are intentionally not part of Step 1.
-They remain gated by the approved plan.
+Camera CRUD/health, dashboards, live playback UI, recording workflows, the full
+event/alarm lifecycle, user administration, search, and audit-log management
+remain gated by the approved plan. The raw local MediaMTX HLS port is not yet
+protected; media authorization hardening is scheduled for Step 10.

@@ -68,7 +68,7 @@ app.MapGet("/", () => Results.Ok(new
 {
     service = "VMS API",
     status = "ready",
-    step = 1
+    step = 2
 }));
 
 app.MapGet("/health", () => Results.Ok(new
