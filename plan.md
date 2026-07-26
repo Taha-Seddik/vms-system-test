@@ -13,6 +13,12 @@ Work will proceed one step at a time. After every step, Codex will stop and prov
 5. **Limitations or deviations** — anything simplified and why.
 6. **Next-step preview** — no next step starts without your confirmation.
 
+Every completed step will also add or update a polished HTML implementation
+guide under `docs/steps/`. Each guide will explain the requirement, architecture,
+dependencies, important source excerpts, verification evidence, current
+boundaries, and the concepts needed before the next step. `docs/index.html`
+will link all completed step guides.
+
 ## Implementation Steps
 
 ### Step 1 — Repository and Media Foundation

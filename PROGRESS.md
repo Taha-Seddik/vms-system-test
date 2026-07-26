@@ -5,7 +5,7 @@ current step has been reviewed and explicitly approved.
 
 | Step | Status | Evidence |
 |---|---|---|
-| 1. Repository and media foundation | Completed and verified | Git repository, API/frontend/test scaffolds, healthy Compose topology, four decodable HLS feeds, verification script |
+| 1. Repository and media foundation | Completed and verified | Git repository, API/frontend/test scaffolds, healthy Compose topology, four decodable HLS feeds, verification script, HTML implementation guide |
 | 2. Authentication, roles, and assignments | Not started | — |
 | 3. Camera management and health | Not started | — |
 | 4. Command center dashboard | Not started | — |
@@ -25,3 +25,6 @@ current step has been reviewed and explicitly approved.
 - Backend tests passed.
 - Complete Compose runtime verification passed on 2026-07-26: all eight
   services were healthy and every HLS feed decoded as H.264, 640×360 at 10 FPS.
+- `docs/steps/step-01-repository-media-foundation.html` documents the
+  architecture, dependencies, implementation excerpts, proof, boundaries, and
+  concepts required before Step 2.

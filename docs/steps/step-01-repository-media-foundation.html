@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step 1 implementation guide for the VMS repository and media foundation."
+    >
+    <title>Step 01 · Repository and Media Foundation · VMS</title>
+    <link rel="stylesheet" href="../assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="../index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Step 01 · Verified 26 July 2026</span>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-label">On this page</p>
+        <ol>
+          <li><a href="#summary">Executive summary</a></li>
+          <li><a href="#requirement">Assessment requirement</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#dependencies">Dependencies</a></li>
+          <li><a href="#mediamtx">MediaMTX explained</a></li>
+          <li><a href="#services">Compose services</a></li>
+          <li><a href="#repository">Repository structure</a></li>
+          <li><a href="#implementation">Important code</a></li>
+          <li><a href="#configuration">Configuration</a></li>
+          <li><a href="#verification">Verification evidence</a></li>
+          <li><a href="#boundaries">Current boundaries</a></li>
+          <li><a href="#next">Before Step 2</a></li>
+          <li><a href="#commands">Command reference</a></li>
+          <li><a href="#glossary">Glossary</a></li>
+        </ol>
+      </aside>
+
+      <main class="document">
+        <header class="hero">
+          <div class="eyebrow">
+            <span>VMS technical assessment</span>
+            <span class="badge">Completed and verified</span>
+          </div>
+          <h1>Repository and media foundation</h1>
+          <p class="lede">
+            Step 1 turns an empty folder and an implementation plan into a
+            reproducible full-stack system: a browser frontend, an API, a
+            database, a media router, and four locally generated camera feeds
+            that are playable as HLS.
+          </p>
+          <div class="hero-meta">
+            <span><strong>Step:</strong> 01 of 10</span>
+            <span><strong>Verified:</strong> 26 July 2026</span>
+            <span><strong>Foundation commit:</strong> <code>a9d86de</code></span>
+            <span><strong>Verifier fix:</strong> <code>01565aa</code></span>
+          </div>
+
+          <div class="stat-grid" role="group" aria-label="Step 1 summary">
+            <div class="stat">
+              <strong>8</strong>
+              <span>healthy containers</span>
+            </div>
+            <div class="stat">
+              <strong>4</strong>
+              <span>decodable HLS feeds</span>
+            </div>
+            <div class="stat">
+              <strong>640×360</strong>
+              <span>demo resolution</span>
+            </div>
+            <div class="stat">
+              <strong>10 FPS</strong>
+              <span>per generated feed</span>
+            </div>
+          </div>
+        </header>
+
+        <section class="section" id="summary">
+          <h2>Executive summary</h2>
+          <p class="section-intro">
+            This step deliberately implements infrastructure rather than VMS
+            business features. Its purpose is to prove that all later work has a
+            stable place to run and a reliable source of video.
+          </p>
+
+          <div class="grid three">
+            <article class="card">
+              <span class="card-number">Foundation 01</span>
+              <h3>Application skeleton</h3>
+              <p>
+                A lean ASP.NET Core API, a React/TypeScript frontend, and focused
+                backend/frontend test projects now compile and run.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Foundation 02</span>
+              <h3>Media pipeline</h3>
+              <p>
+                Four FFmpeg services publish distinct H.264 RTSP streams to
+                MediaMTX, which converts them into HLS for browsers.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Foundation 03</span>
+              <h3>Repeatable deployment</h3>
+              <p>
+                Docker Compose builds, starts, networks, health-checks, and
+                persists the required services with one command.
+              </p>
+            </article>
+          </div>
+
+          <div class="callout success">
+            <strong class="callout-title">What is proven now</strong>
+            The system can start from repository source, all eight services
+            become healthy, and every generated camera produces a valid HLS
+            playlist containing decodable H.264 video.
+          </div>
+        </section>
+
+        <section class="section" id="requirement">
+          <h2>What the assessment required</h2>
+          <p class="section-intro">
+            The assessment names Docker deployment as a minimum deliverable and
+            requires multi-camera live monitoring later in the solution. It
+            permits open-source libraries, public APIs, and RTSP sample streams.
+          </p>
+
+          <div class="grid two">
+            <article class="card">
+              <h3>Direct Step 1 requirement</h3>
+              <ul>
+                <li>A Docker-deployable project.</li>
+                <li>A frontend and REST API foundation.</li>
+                <li>Video sources suitable for multi-camera live view.</li>
+                <li>README setup instructions.</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Chosen implementation</h3>
+              <ul>
+                <li>Docker Compose for a one-machine assessment deployment.</li>
+                <li>Four deterministic local feeds instead of unreliable public streams.</li>
+                <li>RTSP ingest and HLS output through MediaMTX.</li>
+                <li>Automated health and media verification.</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="callout">
+            <strong class="callout-title">The stack is our design choice</strong>
+            The PDF does not mandate React, ASP.NET Core, PostgreSQL, Material
+            UI, MediaMTX, FFmpeg, SignalR, or Docker Compose. They were selected
+            because they provide a pragmatic, demonstrable implementation
+            within the assessment timebox.
+          </div>
+        </section>
+
+        <section class="section" id="architecture">
+          <h2>How the foundation fits together</h2>
+          <p class="section-intro">
+            There are two paths to understand: the media path transports video,
+            while the application path handles users, metadata, permissions,
+            events, and operator workflows.
+          </p>
+
+          <div class="architecture" role="img" aria-label="VMS Step 1 architecture">
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>FFmpeg × 4</strong>
+                <small>generated cameras</small>
+              </div>
+              <span class="flow-label">RTSP/TCP</span>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node accent">
+                <strong>MediaMTX</strong>
+                <small>media router</small>
+              </div>
+              <span class="flow-label">HLS/HTTP</span>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node">
+                <strong>Browser</strong>
+                <small>future HLS player</small>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-node">
+                <strong>React</strong>
+                <small>operator interface</small>
+              </div>
+              <span class="flow-label">REST</span>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node accent">
+                <strong>ASP.NET API</strong>
+                <small>application authority</small>
+              </div>
+              <span class="flow-label">SQL</span>
+              <span class="flow-arrow">→</span>
+              <div class="flow-node">
+                <strong>PostgreSQL</strong>
+                <small>durable metadata</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid two space-top">
+            <article class="card">
+              <h3>Media plane</h3>
+              <p>
+                FFmpeg and MediaMTX move encoded video efficiently. They do not
+                decide which application user may see which camera.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Application plane</h3>
+              <p>
+                React, ASP.NET Core, and PostgreSQL will enforce roles,
+                assignments, camera state, recordings, events, and audit rules.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="dependencies">
+          <h2>Dependencies and why they exist</h2>
+          <p class="section-intro">
+            Versions are pinned in source or container definitions so the
+            assessment can be reproduced rather than relying on whatever happens
+            to be latest on another machine.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dependency</th>
+                  <th>Version</th>
+                  <th>Responsibility</th>
+                  <th>Use in Step 1</th>
+                  <th>Later use</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="https://dotnet.microsoft.com/" rel="noreferrer">ASP.NET Core</a></td>
+                  <td>10.0</td>
+                  <td>Backend HTTP API and hosted services.</td>
+                  <td>Health and system-information endpoints.</td>
+                  <td>Auth, camera management, recordings, events, search, SignalR.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://react.dev/" rel="noreferrer">React</a></td>
+                  <td>19.2.8</td>
+                  <td>Component-based browser interface.</td>
+                  <td>Foundation status page and camera endpoint inventory.</td>
+                  <td>All operator, administrator, and viewer workflows.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://www.typescriptlang.org/" rel="noreferrer">TypeScript</a></td>
+                  <td>6.0.3</td>
+                  <td>Compile-time safety for frontend code.</td>
+                  <td>Strictly typed UI build.</td>
+                  <td>Typed API contracts and VMS domain models.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://vite.dev/" rel="noreferrer">Vite</a></td>
+                  <td>8.1.5</td>
+                  <td>Frontend development server and production bundler.</td>
+                  <td>Development workflow and optimized build.</td>
+                  <td>Continues to build the complete frontend.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://mui.com/material-ui/" rel="noreferrer">Material UI</a></td>
+                  <td>9.2.0</td>
+                  <td>Accessible React UI primitives and theming.</td>
+                  <td>Theme, layout, cards, typography, and status UI.</td>
+                  <td>Forms, tables, dialogs, dashboard, playback controls.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://www.postgresql.org/" rel="noreferrer">PostgreSQL</a></td>
+                  <td>17.5</td>
+                  <td>Relational durable data store.</td>
+                  <td>Healthy persistent database service.</td>
+                  <td>Users, assignments, cameras, recordings, events, audits.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://mediamtx.org/" rel="noreferrer">MediaMTX</a></td>
+                  <td>1.19.3</td>
+                  <td>Protocol-aware media router.</td>
+                  <td>Accepts four RTSP publishers and exposes HLS.</td>
+                  <td>Live view source and media-health observability.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://ffmpeg.org/" rel="noreferrer">FFmpeg / FFprobe</a></td>
+                  <td>Alpine 6.1.2</td>
+                  <td>Video generation, encoding, probing, and recording.</td>
+                  <td>Generates H.264 feeds; verifies decoded streams.</td>
+                  <td>Connection tests, recording, snapshots, keyframes.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://docs.docker.com/compose/" rel="noreferrer">Docker Compose</a></td>
+                  <td>5.3.1 verified</td>
+                  <td>Builds and coordinates the complete local stack.</td>
+                  <td>Eight services, network, volumes, dependencies, health.</td>
+                  <td>Remains the assessment deployment mechanism.</td>
+                </tr>
+                <tr>
+                  <td><a href="https://nginx.org/" rel="noreferrer">Nginx</a></td>
+                  <td>1.29.5</td>
+                  <td>Serves the compiled frontend efficiently.</td>
+                  <td>Static SPA server and frontend health endpoint.</td>
+                  <td>Continues to serve the production frontend image.</td>
+                </tr>
+                <tr>
+                  <td>Vitest / xUnit</td>
+                  <td>4.1.10 / 2.9.3</td>
+                  <td>Frontend and backend automated tests.</td>
+                  <td>One focused foundation test in each application.</td>
+                  <td>Critical authorization and workflow coverage.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <strong class="callout-title">Dependency boundary</strong>
+            PostgreSQL is running but no application tables exist yet. SignalR
+            is part of the selected stack but is intentionally not installed
+            until the real-time dashboard work in Step 4.
+          </div>
+        </section>
+
+        <section class="section" id="mediamtx">
+          <h2>MediaMTX: what it does and how we use it</h2>
+          <p class="section-intro">
+            MediaMTX is the bridge between camera-oriented streaming protocols
+            and browser-oriented playback. Think of it as a media router, not
+            the VMS application or database.
+          </p>
+
+          <div class="grid two">
+            <article class="card">
+              <span class="card-number">Input</span>
+              <h3>Receives RTSP publishers</h3>
+              <p>
+                Each FFmpeg container publishes to one named path:
+                <code>camera-1</code> through <code>camera-4</code>. TCP is used
+                for deterministic behavior inside Docker networking.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Output</span>
+              <h3>Produces HLS over HTTP</h3>
+              <p>
+                Browsers cannot normally play RTSP directly. MediaMTX remuxes
+                the same H.264 stream into an HLS playlist and segments without
+                asking the React application to process video.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Observation</span>
+              <h3>Exposes API and metrics</h3>
+              <p>
+                A control API on port <code>9997</code> and metrics on
+                <code>9998</code> provide media-server visibility. The internal
+                control endpoint is also used for the container health check.
+              </p>
+            </article>
+            <article class="card">
+              <span class="card-number">Responsibility</span>
+              <h3>Does not implement RBAC</h3>
+              <p>
+                MediaMTX moves streams. The ASP.NET application remains the
+                authority for user roles, Viewer assignments, and protected
+                application workflows.
+              </p>
+            </article>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>infra/mediamtx/mediamtx.yml</strong>
+              <span>Protocol and path configuration</span>
+            </div>
+            <pre><code><span class="token-key">rtsp</span>: <span class="token-value">true</span>
+<span class="token-key">rtspAddress</span>: <span class="token-value">:8554</span>
+<span class="token-key">rtspTransports</span>: [<span class="token-value">tcp</span>]
+
+<span class="token-key">hls</span>: <span class="token-value">true</span>
+<span class="token-key">hlsAddress</span>: <span class="token-value">:8888</span>
+<span class="token-key">hlsAlwaysRemux</span>: <span class="token-value">true</span>
+<span class="token-key">hlsVariant</span>: <span class="token-value">mpegts</span>
+<span class="token-key">hlsSegmentCount</span>: <span class="token-value">6</span>
+<span class="token-key">hlsSegmentDuration</span>: <span class="token-value">2s</span>
+
+<span class="token-key">paths</span>:
+  <span class="token-key">camera-1</span>:
+    <span class="token-key">source</span>: <span class="token-value">publisher</span>
+  <span class="token-key">camera-2</span>:
+    <span class="token-key">source</span>: <span class="token-value">publisher</span>
+  <span class="token-key">camera-3</span>:
+    <span class="token-key">source</span>: <span class="token-value">publisher</span>
+  <span class="token-key">camera-4</span>:
+    <span class="token-key">source</span>: <span class="token-value">publisher</span></code></pre>
+          </div>
+
+          <h3>Understanding the HLS URL</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>Camera 1 master playlist</strong>
+              <span>HTTP endpoint</span>
+            </div>
+            <pre><code>http://localhost:8888/camera-1/index.m3u8</code></pre>
+          </div>
+          <p>
+            The first playlist is a master playlist. It references a media
+            playlist such as <code>main_stream.m3u8</code>, which in turn
+            references short MPEG-TS segments. FFprobe follows this chain and
+            confirms that the segments contain usable video.
+          </p>
+
+          <div class="callout warning">
+            <strong class="callout-title">MediaMTX is not our recording subsystem</strong>
+            Although MediaMTX has recording capabilities, the approved design
+            uses an application-managed FFmpeg recording service in Step 6.
+            That gives the API explicit lifecycle control and lets it create
+            database metadata, failures, events, and playable MP4 files as one
+            coordinated workflow.
+          </div>
+        </section>
+
+        <section class="section" id="services">
+          <h2>The eight Compose services</h2>
+          <p class="section-intro">
+            Compose provides one network and starts services only after their
+            required dependencies are healthy.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Purpose</th>
+                  <th>Dependency</th>
+                  <th>Health proof</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>postgres</td>
+                  <td>Persistent application database.</td>
+                  <td>None</td>
+                  <td><code>pg_isready</code></td>
+                </tr>
+                <tr>
+                  <td>mediamtx</td>
+                  <td>RTSP ingest, HLS output, API, and metrics.</td>
+                  <td>None</td>
+                  <td>Internal control API responds.</td>
+                </tr>
+                <tr>
+                  <td>camera-1</td>
+                  <td>Entrance test-pattern publisher.</td>
+                  <td>Healthy MediaMTX</td>
+                  <td>FFmpeg process exists.</td>
+                </tr>
+                <tr>
+                  <td>camera-2</td>
+                  <td>Loading Bay test-pattern publisher.</td>
+                  <td>Healthy MediaMTX</td>
+                  <td>FFmpeg process exists.</td>
+                </tr>
+                <tr>
+                  <td>camera-3</td>
+                  <td>Parking test-pattern publisher.</td>
+                  <td>Healthy MediaMTX</td>
+                  <td>FFmpeg process exists.</td>
+                </tr>
+                <tr>
+                  <td>camera-4</td>
+                  <td>Warehouse test-pattern publisher.</td>
+                  <td>Healthy MediaMTX</td>
+                  <td>FFmpeg process exists.</td>
+                </tr>
+                <tr>
+                  <td>api</td>
+                  <td>ASP.NET Core application API.</td>
+                  <td>Healthy PostgreSQL</td>
+                  <td>Runs its own HTTP health probe.</td>
+                </tr>
+                <tr>
+                  <td>frontend</td>
+                  <td>Nginx-hosted React application.</td>
+                  <td>Healthy API and MediaMTX</td>
+                  <td>Nginx <code>/health</code> responds.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>compose.yaml</strong>
+              <span>Reusable camera service definition</span>
+            </div>
+            <pre><code><span class="token-key">x-camera-generator</span>: <span class="token-value">&amp;camera-generator</span>
+  <span class="token-key">image</span>: <span class="token-value">vms-camera-generator:local</span>
+  <span class="token-key">build</span>:
+    <span class="token-key">context</span>: <span class="token-value">./infra/camera-generator</span>
+  <span class="token-key">depends_on</span>:
+    <span class="token-key">mediamtx</span>:
+      <span class="token-key">condition</span>: <span class="token-value">service_healthy</span>
+  <span class="token-key">healthcheck</span>:
+    <span class="token-key">test</span>: [<span class="token-value">"CMD-SHELL"</span>, <span class="token-value">"pidof ffmpeg &gt;/dev/null || exit 1"</span>]
+
+<span class="token-key">services</span>:
+  <span class="token-key">camera-1</span>:
+    <span class="token-key">&lt;&lt;</span>: <span class="token-value">*camera-generator</span>
+    <span class="token-key">environment</span>:
+      <span class="token-key">CAMERA_PATH</span>: <span class="token-value">camera-1</span>
+      <span class="token-key">CAMERA_LABEL</span>: <span class="token-value">Camera 1 - Entrance</span></code></pre>
+          </div>
+
+          <p>
+            The YAML anchor prevents four nearly identical service definitions
+            from drifting apart. Each camera overrides only identity and color.
+          </p>
+        </section>
+
+        <section class="section" id="repository">
+          <h2>Repository structure</h2>
+          <p class="section-intro">
+            The monorepo stays intentionally lean: one backend application, one
+            backend test project, one frontend, infrastructure, scripts, and
+            documentation.
+          </p>
+
+          <figure class="file-tree" aria-label="Repository tree">vms-system-test/
+├── backend/
+│   ├── Vms.Api/                 ASP.NET Core API and Dockerfile
+│   └── Vms.Api.Tests/           API integration tests
+├── frontend/
+│   ├── src/                     React application and tests
+│   ├── Dockerfile               Node build → Nginx runtime
+│   └── nginx.conf               SPA and health endpoint
+├── infra/
+│   ├── camera-generator/        FFmpeg source image and script
+│   └── mediamtx/                MediaMTX image and configuration
+├── scripts/
+│   └── verify-foundation.ps1    End-to-end Step 1 proof
+├── docs/
+│   ├── assets/                  Shared documentation design
+│   ├── steps/                   One HTML guide per step
+│   └── index.html               Documentation home
+├── compose.yaml                 Complete local topology
+├── Vms.slnx                    .NET solution
+├── global.json                 Pinned .NET SDK
+├── .env.example                Optional local overrides
+├── README.md                   Setup and operating guide
+├── PROGRESS.md                 Gate status and evidence
+└── plan.md                     Approved implementation plan</figure>
+
+          <div class="callout">
+            <strong class="callout-title">Why there is no large Clean Architecture solution</strong>
+            The assessment has a 1–2 day target. Extra application/domain/
+            infrastructure projects would add ceremony before adding evidence.
+            The API can still maintain clear feature folders and service
+            boundaries as its domain grows.
+          </div>
+        </section>
+
+        <section class="section" id="implementation">
+          <h2>Important implementation code</h2>
+          <p class="section-intro">
+            These excerpts are intentionally selected from the real source. They
+            show the mechanics that later steps depend on.
+          </p>
+
+          <h3>1. FFmpeg creates a real encoded camera stream</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>infra/camera-generator/entrypoint.sh</strong>
+              <span>Generated H.264 RTSP publisher</span>
+            </div>
+            <pre><code><span class="token-command">ffmpeg</span> \
+  -re \
+  -f lavfi \
+  -i <span class="token-value">"testsrc2=size=${CAMERA_RESOLUTION}:rate=${CAMERA_FPS}"</span> \
+  -vf <span class="token-value">"hue=h=${CAMERA_HUE},drawtext=...:text='${CAMERA_LABEL}'"</span> \
+  -c:v <span class="token-value">libx264</span> \
+  -preset <span class="token-value">ultrafast</span> \
+  -tune <span class="token-value">zerolatency</span> \
+  -pix_fmt <span class="token-value">yuv420p</span> \
+  -g <span class="token-value">"$GOP_SIZE"</span> \
+  -b:v <span class="token-value">500k</span> \
+  -rtsp_transport <span class="token-value">tcp</span> \
+  -f <span class="token-value">rtsp</span> \
+  <span class="token-value">"$PUBLISH_URL"</span></code></pre>
+          </div>
+          <p>
+            <code>-re</code> publishes at real-time speed.
+            <code>testsrc2</code> generates moving video. H.264 with
+            <code>yuv420p</code> is broadly compatible. A two-second GOP aligns
+            regular keyframes with the two-second HLS segment target. The
+            publisher runs in a retry loop so a MediaMTX restart is recoverable.
+          </p>
+
+          <h3>2. The API exposes a health contract</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>backend/Vms.Api/Program.cs</strong>
+              <span>HTTP liveness and container self-probe</span>
+            </div>
+            <pre><code>app.MapGet(<span class="token-value">"/health"</span>, () =&gt; Results.Ok(new
+{
+    status = <span class="token-value">"Healthy"</span>,
+    service = <span class="token-value">"vms-api"</span>,
+    timestamp = DateTimeOffset.UtcNow
+}));</code></pre>
+          </div>
+          <p>
+            The API also accepts a <code>--health-check</code> command argument.
+            Docker starts a short-lived copy of the application assembly with
+            that argument; it calls the already-running API and returns process
+            exit code 0 or 1. This avoids adding Curl to the production image.
+          </p>
+
+          <h3>3. The frontend is a real production build</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>frontend/Dockerfile</strong>
+              <span>Multi-stage frontend image</span>
+            </div>
+            <pre><code><span class="token-key">FROM</span> <span class="token-value">node:24.12.0-alpine</span> AS build
+<span class="token-key">WORKDIR</span> /app
+<span class="token-key">COPY</span> package.json package-lock.json ./
+<span class="token-key">RUN</span> npm ci
+<span class="token-key">COPY</span> . .
+<span class="token-key">RUN</span> npm run build
+
+<span class="token-key">FROM</span> <span class="token-value">nginx:1.29.5-alpine</span> AS runtime
+<span class="token-key">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf
+<span class="token-key">COPY</span> --from=build /app/dist /usr/share/nginx/html</code></pre>
+          </div>
+          <p>
+            Node and the development toolchain are not shipped in the final
+            frontend container. Only the compiled static assets and Nginx remain.
+          </p>
+
+          <h3>4. Verification checks media—not only HTTP</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>scripts/verify-foundation.ps1</strong>
+              <span>Playlist parsing and FFprobe</span>
+            </div>
+            <pre><code><span class="token-key">$playlistContent</span> = if (<span class="token-key">$playlist.Content</span> -is [byte[]]) {
+    [System.Text.Encoding]::UTF8.GetString(<span class="token-key">$playlist.Content</span>)
+}
+else {
+    [string]<span class="token-key">$playlist.Content</span>
+}
+
+if (<span class="token-key">$playlistContent</span> -notmatch <span class="token-value">"#EXTM3U"</span>) {
+    throw <span class="token-value">"$cameraPath returned a response, but it is not an HLS playlist."</span>
+}
+
+docker compose exec -T camera-1 ffprobe `
+  -select_streams <span class="token-value">"v:0"</span> `
+  -show_entries <span class="token-value">"stream=codec_name,width,height,r_frame_rate"</span> `
+  -of json `
+  <span class="token-value">"http://mediamtx:8888/$cameraPath/index.m3u8"</span></code></pre>
+          </div>
+          <p>
+            An HTTP 200 response could still contain an error page. The script
+            therefore validates the HLS signature and then asks FFprobe to open
+            and decode stream metadata. The byte-array branch exists because
+            Windows PowerShell returns the HLS MIME type as binary content.
+          </p>
+        </section>
+
+        <section class="section" id="configuration">
+          <h2>Configuration and exposed endpoints</h2>
+          <p class="section-intro">
+            Safe development defaults allow a one-command startup. A local
+            <code>.env</code> file is optional and ignored by Git.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Endpoint</th>
+                  <th>Purpose</th>
+                  <th>Current protection</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>http://localhost:3000</code></td>
+                  <td>Frontend application.</td>
+                  <td>Open development endpoint.</td>
+                </tr>
+                <tr>
+                  <td><code>http://localhost:8080</code></td>
+                  <td>ASP.NET Core API.</td>
+                  <td>Only non-sensitive Step 1 endpoints exist.</td>
+                </tr>
+                <tr>
+                  <td><code>http://localhost:8888/{camera}/index.m3u8</code></td>
+                  <td>HLS master playlist.</td>
+                  <td>Open local demo stream.</td>
+                </tr>
+                <tr>
+                  <td><code>rtsp://localhost:8554/{camera}</code></td>
+                  <td>RTSP read/publish endpoint.</td>
+                  <td>Open local demo stream.</td>
+                </tr>
+                <tr>
+                  <td><code>http://localhost:9997</code></td>
+                  <td>MediaMTX control API.</td>
+                  <td>Container-local health access; external calls may require authorization.</td>
+                </tr>
+                <tr>
+                  <td><code>http://localhost:9998/metrics</code></td>
+                  <td>MediaMTX metrics.</td>
+                  <td>Local development only.</td>
+                </tr>
+                <tr>
+                  <td><code>localhost:5432</code></td>
+                  <td>PostgreSQL.</td>
+                  <td>Development credentials from Compose defaults.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <strong class="callout-title">Development credentials are not production credentials</strong>
+            The default PostgreSQL password exists so a clean evaluator machine
+            can run the stack immediately. Real secrets must be placed in an
+            untracked <code>.env</code> file or a secret manager. Input
+            validation, RTSP credential redaction, and protected media are
+            finalized in Step 10.
+          </div>
+        </section>
+
+        <section class="section" id="verification">
+          <h2>Verification evidence</h2>
+          <p class="section-intro">
+            Step 1 was verified at source, application, container, HTTP, playlist,
+            and decoded-media levels.
+          </p>
+
+          <ul class="checklist">
+            <li>Git repository initialized on <code>main</code> with a clean working tree.</li>
+            <li>ASP.NET Core integration test passed: 1 passed, 0 failed.</li>
+            <li>Frontend lint passed with no ESLint errors.</li>
+            <li>Frontend Vitest passed: 1 passed, 0 failed.</li>
+            <li>Frontend production build succeeded: 899 modules transformed.</li>
+            <li><code>npm audit</code> found zero known vulnerabilities.</li>
+            <li>Docker Compose model validation passed with eight resolved services.</li>
+            <li>All pinned container-image tags were available.</li>
+            <li>All eight containers reached running and healthy state.</li>
+            <li>API and frontend health endpoints returned success.</li>
+            <li>All four HLS master playlists returned valid <code>#EXTM3U</code> content.</li>
+            <li>FFprobe decoded every feed as H.264, 640×360, 10 FPS.</li>
+          </ul>
+
+          <div class="code-block">
+            <div class="code-header">
+              <strong>Observed verification result</strong>
+              <span>26 July 2026</span>
+            </div>
+            <pre><code>[PASS] API responded at http://localhost:8080/health
+[PASS] Frontend responded at http://localhost:3000/health
+[PASS] camera-1 contains decodable video.
+[PASS] camera-2 contains decodable video.
+[PASS] camera-3 contains decodable video.
+[PASS] camera-4 contains decodable video.
+[PASS] All Compose services are running and healthy.
+Step 1 foundation verification completed successfully.</code></pre>
+          </div>
+
+          <div class="callout">
+            <strong class="callout-title">Why generated streams are preferable here</strong>
+            Public RTSP demonstrations can disappear, throttle, change codecs,
+            or require internet access. Local deterministic feeds make failures
+            attributable to our code and allow an evaluator to reproduce the
+            same proof offline after images and packages are available.
+          </div>
+        </section>
+
+        <section class="section" id="boundaries">
+          <h2>What Step 1 does not implement</h2>
+          <p class="section-intro">
+            A healthy infrastructure service is not the same thing as a finished
+            assessment feature. These boundaries prevent us from overstating
+            progress.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Area</th>
+                  <th>State now</th>
+                  <th>Implemented in</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Authentication</td>
+                  <td>No login, JWT, password hashing, or RBAC yet.</td>
+                  <td>Step 2</td>
+                </tr>
+                <tr>
+                  <td>Viewer assignments</td>
+                  <td>No user-to-camera records or enforcement yet.</td>
+                  <td>Step 2</td>
+                </tr>
+                <tr>
+                  <td>Camera database records</td>
+                  <td>Four media paths exist, but they are not camera entities.</td>
+                  <td>Step 3</td>
+                </tr>
+                <tr>
+                  <td>Camera health</td>
+                  <td>Container/media availability only; no heartbeat domain model.</td>
+                  <td>Step 3</td>
+                </tr>
+                <tr>
+                  <td>Dashboard and SignalR</td>
+                  <td>Only a foundation page; no command-center metrics.</td>
+                  <td>Step 4</td>
+                </tr>
+                <tr>
+                  <td>Live monitoring UI</td>
+                  <td>HLS URLs exist; no HLS.js player or layouts yet.</td>
+                  <td>Step 5</td>
+                </tr>
+                <tr>
+                  <td>Recording</td>
+                  <td>FFmpeg publishes live video but writes no recordings.</td>
+                  <td>Step 6</td>
+                </tr>
+                <tr>
+                  <td>Events and alarms</td>
+                  <td>No event schema, motion simulation, or alarm lifecycle.</td>
+                  <td>Steps 6 and 8</td>
+                </tr>
+                <tr>
+                  <td>Search and audit</td>
+                  <td>No domain data exists to search or audit.</td>
+                  <td>Step 9</td>
+                </tr>
+                <tr>
+                  <td>Final media protection</td>
+                  <td>Direct local HLS is intentionally open for foundation proof.</td>
+                  <td>Step 10</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout warning">
+            <strong class="callout-title">Do not confuse a media path with a camera</strong>
+            <code>camera-1</code> currently identifies a MediaMTX route. In Step
+            3, a camera becomes an application entity with a name, location,
+            group, RTSP URL, resolution, FPS, recording status, online status,
+            enabled state, and last heartbeat.
+          </div>
+        </section>
+
+        <section class="section" id="next">
+          <h2>What to understand before Step 2</h2>
+          <p class="section-intro">
+            Step 2 adds the first real application security boundary. These
+            points guide that implementation.
+          </p>
+
+          <ol class="numbered-list">
+            <li>
+              <strong>The API—not the frontend—is the authority.</strong><br>
+              Hiding a button or route in React improves UX but does not secure
+              data. Every restricted API operation must enforce role and
+              assignment rules on the server.
+            </li>
+            <li>
+              <strong>Viewer camera assignments are mandatory data.</strong><br>
+              The PDF says Viewers may see assigned live cameras only. Step 2
+              therefore needs a many-to-many user/camera authorization model,
+              even though full camera CRUD arrives in Step 3.
+            </li>
+            <li>
+              <strong>Media access and application authorization are separate.</strong><br>
+              A user should receive a camera or stream reference only after the
+              API authorizes them. Direct local HLS remains a development
+              boundary until protected media delivery is completed.
+            </li>
+            <li>
+              <strong>User activity begins with authentication.</strong><br>
+              Successful login, logout, and recent authenticated requests will
+              later contribute to User Login/User Logout events, active-user
+              metrics, and operator activity.
+            </li>
+            <li>
+              <strong>PostgreSQL becomes active application infrastructure.</strong><br>
+              Step 2 introduces database migrations and durable users, roles,
+              assignments, and activity state. The existing database health gate
+              ensures the API starts after PostgreSQL is ready.
+            </li>
+            <li>
+              <strong>Generated feeds remain stable test fixtures.</strong><br>
+              They should not be replaced while security is being built.
+              Stable camera identifiers make authorization tests deterministic.
+            </li>
+          </ol>
+
+          <div class="callout success">
+            <strong class="callout-title">Step 1 exit condition is satisfied</strong>
+            The repository and media foundation are ready. Step 2 may begin only
+            after the user explicitly approves this gate.
+          </div>
+        </section>
+
+        <section class="section" id="commands">
+          <h2>Command reference</h2>
+
+          <h3>Start the complete stack</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Build and start in background</span>
+            </div>
+            <pre><code><span class="token-command">docker compose up --build -d</span></code></pre>
+          </div>
+
+          <h3>Run the full Step 1 proof</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Health, HLS, FFprobe, containers</span>
+            </div>
+            <pre><code><span class="token-command">.\scripts\verify-foundation.ps1</span></code></pre>
+          </div>
+
+          <h3>Inspect services and logs</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Operations</span>
+            </div>
+            <pre><code><span class="token-command">docker compose ps</span>
+<span class="token-command">docker compose logs -f</span>
+<span class="token-command">docker compose logs -f mediamtx camera-1</span></code></pre>
+          </div>
+
+          <h3>Stop without deleting database data</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Preserves named volumes</span>
+            </div>
+            <pre><code><span class="token-command">docker compose down</span></code></pre>
+          </div>
+
+          <h3>Run source checks</h3>
+          <div class="code-block">
+            <div class="code-header">
+              <strong>PowerShell</strong>
+              <span>Backend and frontend</span>
+            </div>
+            <pre><code><span class="token-command">dotnet test Vms.slnx</span>
+
+<span class="token-command">Push-Location frontend</span>
+<span class="token-command">npm ci</span>
+<span class="token-command">npm run lint</span>
+<span class="token-command">npm test</span>
+<span class="token-command">npm run build</span>
+<span class="token-command">Pop-Location</span></code></pre>
+          </div>
+
+          <div class="callout">
+            <strong class="callout-title">If Docker was just installed</strong>
+            Close and reopen PowerShell so it receives the updated machine
+            <code>PATH</code>. For the current session only, the Docker CLI can
+            be added immediately with:
+            <code>$env:Path += ';C:\Program Files\Docker\Docker\resources\bin'</code>.
+          </div>
+        </section>
+
+        <section class="section" id="glossary">
+          <h2>Small glossary</h2>
+          <dl class="definition-list">
+            <dt>RTSP</dt>
+            <dd>
+              A streaming control protocol commonly exposed by IP cameras. It is
+              useful for ingest but is not natively playable by normal browsers.
+            </dd>
+            <dt>HLS</dt>
+            <dd>
+              HTTP Live Streaming. A playlist plus short media segments that can
+              be transported through normal HTTP infrastructure and played with
+              HLS.js or native browser support.
+            </dd>
+            <dt>Remux</dt>
+            <dd>
+              Repackages already encoded media into another container/protocol
+              without decoding and re-encoding every frame.
+            </dd>
+            <dt>H.264</dt>
+            <dd>
+              The video codec used by the generated feeds. It provides broad
+              compatibility for RTSP, HLS, MP4, browsers, and FFmpeg workflows.
+            </dd>
+            <dt>GOP</dt>
+            <dd>
+              Group of Pictures: the distance between keyframes. Regular
+              keyframes help HLS segmenting, seeking, snapshots, and future
+              recording keyframe extraction.
+            </dd>
+            <dt>FFprobe</dt>
+            <dd>
+              FFmpeg’s inspection tool. It validates that a URL contains actual,
+              decodable media and reports codec, resolution, and frame rate.
+            </dd>
+            <dt>Health check</dt>
+            <dd>
+              A repeatable probe used by Docker to determine whether a service is
+              ready, rather than merely whether its process exists.
+            </dd>
+            <dt>Named volume</dt>
+            <dd>
+              Docker-managed persistent storage. PostgreSQL data survives
+              ordinary <code>docker compose down</code> and container rebuilds.
+            </dd>
+          </dl>
+        </section>
+
+        <footer class="doc-footer">
+          <span>VMS Full-Stack Technical Assessment · Step 01</span>
+          <span>Source of truth: assessment PDF, implementation, and verification output</span>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

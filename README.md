@@ -169,10 +169,24 @@ infra/
   mediamtx/                MediaMTX image and configuration
 scripts/
   verify-foundation.ps1    End-to-end Step 1 verification
+docs/
+  index.html               HTML implementation documentation home
+  assets/                  Shared documentation styling
+  steps/                   One implementation guide per approved step
 compose.yaml               Complete local stack
 PROGRESS.md                Gated assessment progress
 plan.md                    Approved implementation plan
 ```
+
+## Implementation documentation
+
+Open [`docs/index.html`](docs/index.html) in a browser to read the assessment
+implementation guides. Every completed step receives a formatted HTML guide
+covering its requirements, architecture, dependencies, important code,
+verification evidence, limitations, and next-step context.
+
+The Step 1 guide is:
+[`docs/steps/step-01-repository-media-foundation.html`](docs/steps/step-01-repository-media-foundation.html).
 
 ## Development configuration
 

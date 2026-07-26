@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Implementation documentation for the VMS full-stack technical assessment."
+    >
+    <title>VMS Implementation Documentation</title>
+    <link rel="stylesheet" href="assets/documentation.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">
+          <span class="brand-mark">VMS</span>
+          <span>Implementation Notes</span>
+        </a>
+        <span class="topbar-meta">Assessment evidence · 10 gated steps</span>
+      </div>
+    </header>
+
+    <main class="index-shell">
+      <header class="index-header">
+        <div class="eyebrow">Technical assessment · living documentation</div>
+        <h1>VMS implementation guide</h1>
+        <p class="lede">
+          One reviewable HTML document per approved implementation step. Each
+          guide explains the assessment requirement, architecture decisions,
+          dependencies, important source code, verification evidence, known
+          boundaries, and what must be understood before the next gate.
+        </p>
+      </header>
+
+      <section aria-labelledby="steps-heading">
+        <h2 id="steps-heading">Implementation steps</h2>
+        <div class="step-list">
+          <a
+            class="step-card"
+            href="steps/step-01-repository-media-foundation.html"
+          >
+            <span class="status">Completed and verified</span>
+            <h2>01 · Repository and media foundation</h2>
+            <p>
+              Git, ASP.NET Core, React, PostgreSQL, Docker Compose, MediaMTX,
+              four generated RTSP feeds, HLS, health checks, and proof.
+            </p>
+          </a>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>02 · Authentication, roles, and assignments</h2>
+            <p>
+              JWT authentication, secure passwords, RBAC, Viewer camera
+              assignments, and user activity.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>03 · Camera management and health</h2>
+            <p>
+              Camera groups, CRUD, connection testing, monitoring, heartbeat,
+              and connectivity events.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>04 · Command center dashboard</h2>
+            <p>
+              Operational metrics, alarms, incidents, activity, SignalR, and
+              polling fallback.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>05 · Multi-camera live monitoring</h2>
+            <p>
+              1/4/9/16 layouts, HLS playback, fullscreen, zoom, snapshot, and
+              assignment enforcement.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>06 · Real recording workflows</h2>
+            <p>
+              Manual, continuous, and event recordings using managed FFmpeg
+              processes and playable MP4 output.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>07 · Playback and keyframes</h2>
+            <p>
+              Recording browser, playback controls, downloads, snapshots, and
+              seekable keyframe thumbnails.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>08 · Events, alarms, and incidents</h2>
+            <p>
+              Required event types, lifecycle, filters, live updates, active
+              alarms, and incident representation.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>09 · Users, search, and audit logs</h2>
+            <p>
+              Administrator user management, assignments, resource search,
+              filters, and auditable operator activity.
+            </p>
+          </article>
+
+          <article class="step-card planned">
+            <span class="status planned">Not started</span>
+            <h2>10 · Final integration and documentation</h2>
+            <p>
+              OpenAPI, validation, security, focused tests, responsive polish,
+              clean startup, and final assessment evidence.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
