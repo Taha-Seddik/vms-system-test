@@ -106,6 +106,9 @@ current step has been reviewed and explicitly approved.
 - The reviewed application shell now uses a fixed left administration sidebar
   on desktop and a solid mobile header/drawer. Camera and group management
   remain together in one workspace.
+- The application palette is now a simple light administration theme. Drawer
+  contents use constrained widths, clipped horizontal overflow, and ellipsis
+  for long labels, eliminating sidebar horizontal scrolling.
 - Operational cards show no more than five preview rows. Focused tests verify
   that View all opens the full result in a right-side detail drawer and that
   the drawer closes accessibly.

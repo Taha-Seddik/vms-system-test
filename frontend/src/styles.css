@@ -1,5 +1,5 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -7,22 +7,27 @@
 html {
   min-width: 320px;
   min-height: 100%;
-  background: #08131f;
+  overflow-x: hidden;
+  background: #f4f6f9;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .app-shell,
 .login-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 82% 5%, rgb(68 215 182 / 12%), transparent 30rem),
-    radial-gradient(circle at 5% 82%, rgb(111 168 255 / 10%), transparent 28rem),
-    #08131f;
+  background: #f4f6f9;
 }
 
 .app-shell {
@@ -30,40 +35,51 @@ body {
 }
 
 .application-content {
+  width: auto;
+  max-width: 100%;
   min-width: 0;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .mobile-app-bar.MuiAppBar-root {
   display: none;
-  color: #edf7ff;
-  border-bottom: 1px solid rgb(255 255 255 / 8%);
-  background: #08131f;
+  color: #172033;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .desktop-navigation-drawer .MuiDrawer-paper,
 .mobile-navigation-drawer .MuiDrawer-paper {
   width: 280px;
+  max-width: 100vw;
   box-sizing: border-box;
-  color: #edf7ff;
-  border-right: 1px solid rgb(255 255 255 / 8%);
-  background:
-    radial-gradient(circle at 20% 0%, rgb(68 215 182 / 10%), transparent 18rem),
-    #0b1724;
+  overflow-x: hidden;
+  color: #172033;
+  border-right: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .side-navigation {
   display: flex;
-  width: 280px;
+  width: 100%;
+  min-width: 0;
   height: 100%;
+  box-sizing: border-box;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 .side-navigation-brand {
   display: flex;
+  min-width: 0;
   padding: 1.65rem 1.35rem 1.4rem;
   align-items: center;
   gap: 0.8rem;
+}
+
+.side-navigation-brand > .MuiBox-root:last-child {
+  min-width: 0;
 }
 
 .brand-symbol {
@@ -73,10 +89,9 @@ body {
   height: 38px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(68 215 182 / 32%);
+  border: 1px solid #bfdbfe;
   border-radius: 12px;
-  background: linear-gradient(145deg, rgb(68 215 182 / 22%), rgb(111 168 255 / 8%));
-  box-shadow: 0 10px 30px rgb(0 0 0 / 20%);
+  background: #eff6ff;
 }
 
 .brand-symbol::before,
@@ -85,7 +100,7 @@ body {
   position: absolute;
   width: 6px;
   border-radius: 6px;
-  background: #70ead0;
+  background: #2563eb;
   content: "";
 }
 
@@ -104,21 +119,31 @@ body {
 }
 
 .brand-name {
+  overflow: hidden;
   font-size: 0.95rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.01em !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand-caption {
-  color: #7f93a7;
+  overflow: hidden;
+  color: #64748b;
   font-size: 0.68rem !important;
   letter-spacing: 0.08em !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-transform: uppercase;
 }
 
 .side-navigation-content {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   flex: 1;
   padding: 0.35rem 0.8rem;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -128,7 +153,7 @@ body {
 
 .navigation-section-label {
   padding: 0 0.75rem 0.55rem;
-  color: #657b90;
+  color: #94a3b8;
   font-size: 0.64rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.13em !important;
@@ -136,13 +161,17 @@ body {
 }
 
 .side-navigation-link.MuiListItemButton-root {
+  width: 100%;
+  min-width: 0;
   min-height: 58px;
+  box-sizing: border-box;
   margin-bottom: 0.3rem;
   padding: 0.6rem 0.75rem;
   gap: 0.8rem;
   border: 1px solid transparent;
   border-radius: 11px;
-  color: #b7c7d6;
+  overflow: hidden;
+  color: #475569;
   transition:
     color 160ms ease,
     border-color 160ms ease,
@@ -150,22 +179,34 @@ body {
 }
 
 .side-navigation-link.MuiListItemButton-root:hover {
-  color: #edf7ff;
-  background: rgb(255 255 255 / 4%);
+  color: #172033;
+  background: #f8fafc;
 }
 
 .side-navigation-link.MuiListItemButton-root.active {
-  color: #ecfffa;
-  border-color: rgb(68 215 182 / 18%);
-  background: linear-gradient(90deg, rgb(68 215 182 / 13%), rgb(68 215 182 / 3%));
+  color: #1d4ed8;
+  border-color: #dbeafe;
+  background: #eff6ff;
 }
 
 .side-navigation-link .MuiListItemText-secondary {
-  color: #6f8498;
+  color: #94a3b8;
 }
 
 .side-navigation-link.active .MuiListItemText-secondary {
-  color: #91aaad;
+  color: #64748b;
+}
+
+.side-navigation-link .MuiListItemText-root {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.side-navigation-link .MuiListItemText-primary,
+.side-navigation-link .MuiListItemText-secondary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .navigation-icon {
@@ -175,7 +216,7 @@ body {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 9px;
-  background: rgb(255 255 255 / 4%);
+  background: #f1f5f9;
 }
 
 .navigation-icon svg {
@@ -189,12 +230,16 @@ body {
 }
 
 .side-navigation-link.active .navigation-icon {
-  color: #70ead0;
-  background: rgb(68 215 182 / 12%);
+  color: #2563eb;
+  background: #dbeafe;
 }
 
 .side-navigation-footer {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 1rem 1.1rem 1.2rem;
+  overflow: hidden;
 }
 
 .side-navigation-footer .MuiDivider-root {
@@ -207,24 +252,24 @@ body {
   height: 36px;
   flex: 0 0 auto;
   place-items: center;
-  color: #071a17;
+  color: #ffffff;
   border-radius: 10px;
-  background: linear-gradient(145deg, #70ead0, #6fa8ff);
+  background: #2563eb;
   font-size: 0.8rem;
   font-weight: 900;
 }
 
 .sign-out-button.MuiButton-root {
   margin-top: 0.85rem;
-  color: #9eb0c2;
-  border: 1px solid rgb(255 255 255 / 7%);
-  background: rgb(255 255 255 / 2%);
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .sign-out-button.MuiButton-root:hover {
-  color: #fff;
-  border-color: rgb(255 255 255 / 15%);
-  background: rgb(255 255 255 / 5%);
+  color: #172033;
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .login-shell {
@@ -246,33 +291,33 @@ body {
 
 .security-note {
   padding: 1.25rem;
-  border: 1px solid rgb(68 215 182 / 22%);
+  border: 1px solid #bfdbfe;
   border-radius: 12px;
-  background: rgb(68 215 182 / 5%);
+  background: #eff6ff;
 }
 
 .login-card {
-  border: 1px solid rgb(255 255 255 / 10%);
-  box-shadow: 0 32px 80px rgb(0 0 0 / 35%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 24px 60px rgb(15 23 42 / 10%);
 }
 
 .account-choice small {
-  color: #91a3b6;
+  color: #64748b;
   font-size: 0.7rem;
   text-transform: none;
 }
 
 .camera-card {
   height: 100%;
-  border-color: rgb(255 255 255 / 10%);
-  border-top: 3px solid hsl(calc(155 + var(--camera-index) * 38) 65% 62%);
+  border-color: #e2e8f0;
+  border-top: 3px solid hsl(calc(205 + var(--camera-index) * 24) 68% 54%);
   transition:
     transform 180ms ease,
     border-color 180ms ease;
 }
 
 .camera-card:hover {
-  border-color: rgb(68 215 182 / 45%);
+  border-color: #93c5fd;
   transform: translateY(-2px);
 }
 
@@ -281,24 +326,25 @@ body {
   min-height: 128px;
   place-items: center;
   margin: 1.5rem 0;
-  border: 1px solid rgb(255 255 255 / 7%);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  color: #91a3b6;
+  color: #64748b;
   background:
-    linear-gradient(135deg, rgb(68 215 182 / 8%), transparent),
+    linear-gradient(135deg, rgb(37 99 235 / 5%), transparent),
     repeating-linear-gradient(
       135deg,
-      rgb(255 255 255 / 2%) 0,
-      rgb(255 255 255 / 2%) 8px,
+      rgb(148 163 184 / 7%) 0,
+      rgb(148 163 184 / 7%) 8px,
       transparent 8px,
       transparent 16px
-    );
+    ),
+    #f8fafc;
 }
 
 .metric-card {
   max-width: 360px;
-  border: 1px solid rgb(111 168 255 / 22%);
-  background: linear-gradient(145deg, rgb(111 168 255 / 12%), #102235 60%);
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
 }
 
 .camera-management-grid {
@@ -308,32 +354,30 @@ body {
 }
 
 .camera-management-grid .MuiCard-root {
-  border-color: rgb(255 255 255 / 10%);
+  border-color: #e2e8f0;
 }
 
 .camera-facts {
   margin-top: 1.25rem;
-  color: #b8c7d5;
+  color: #475569;
   overflow-wrap: anywhere;
 }
 
 .group-row {
   padding: 0.75rem 1rem;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: rgb(255 255 255 / 2%);
+  background: #f8fafc;
 }
 
 .dashboard-hero {
   position: relative;
   padding: clamp(1.35rem, 3vw, 2.2rem);
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid #e2e8f0;
   border-radius: 18px;
-  background:
-    linear-gradient(110deg, rgb(68 215 182 / 8%), transparent 40%),
-    linear-gradient(145deg, #102235, #0d1c2c);
-  box-shadow: 0 22px 60px rgb(0 0 0 / 18%);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 6%);
 }
 
 .dashboard-hero::after {
@@ -342,14 +386,14 @@ body {
   height: 220px;
   right: -80px;
   bottom: -140px;
-  border: 34px solid rgb(111 168 255 / 5%);
+  border: 34px solid rgb(37 99 235 / 4%);
   border-radius: 50%;
   content: "";
 }
 
 .page-eyebrow {
   margin-bottom: 0.7rem !important;
-  color: #70ead0;
+  color: #2563eb;
   font-size: 0.68rem !important;
   font-weight: 850 !important;
   letter-spacing: 0.15em !important;
@@ -366,15 +410,16 @@ body {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 8%);
-  background: linear-gradient(145deg, rgb(255 255 255 / 3%), rgb(255 255 255 / 1%));
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 4%);
   transition:
     transform 160ms ease,
     border-color 160ms ease;
 }
 
 .dashboard-metric:hover {
-  border-color: rgb(255 255 255 / 14%);
+  border-color: #bfdbfe;
   transform: translateY(-2px);
 }
 
@@ -382,20 +427,20 @@ body {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: #6fa8ff;
+  background: #2563eb;
   content: "";
 }
 
 .dashboard-metric.tone-green::before {
-  background: #44d7b6;
+  background: #0f766e;
 }
 
 .dashboard-metric.tone-amber::before {
-  background: #f4c467;
+  background: #d97706;
 }
 
 .dashboard-metric.tone-violet::before {
-  background: #b592ff;
+  background: #7c3aed;
 }
 
 .metric-code {
@@ -404,10 +449,10 @@ body {
   height: 26px;
   padding: 0 0.45rem;
   place-items: center;
-  color: #8ba0b4;
-  border: 1px solid rgb(255 255 255 / 8%);
+  color: #64748b;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: rgb(255 255 255 / 3%);
+  background: #f8fafc;
   font-size: 0.58rem;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -415,11 +460,9 @@ body {
 
 .dashboard-panel {
   height: 100%;
-  border-color: rgb(255 255 255 / 9%);
-  background:
-    linear-gradient(145deg, rgb(68 215 182 / 2%), transparent 38%),
-    #0f2031;
-  box-shadow: 0 18px 45px rgb(0 0 0 / 10%);
+  border-color: #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 5%);
 }
 
 .command-camera-wall {
@@ -431,26 +474,27 @@ body {
 .command-camera-tile {
   min-width: 0;
   padding: 0.8rem;
-  border: 1px solid rgb(255 255 255 / 8%);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: #0a1825;
+  background: #ffffff;
 }
 
 .command-camera-visual {
   display: grid;
   min-height: 96px;
   place-items: center;
-  color: #91a3b6;
+  color: #64748b;
   background:
-    radial-gradient(circle at 75% 25%, rgb(68 215 182 / 12%), transparent 36%),
+    radial-gradient(circle at 75% 25%, rgb(37 99 235 / 8%), transparent 36%),
     repeating-linear-gradient(
       135deg,
-      rgb(255 255 255 / 2%) 0,
-      rgb(255 255 255 / 2%) 8px,
+      rgb(148 163 184 / 8%) 0,
+      rgb(148 163 184 / 8%) 8px,
       transparent 8px,
       transparent 16px
-    );
-  border: 1px solid rgb(255 255 255 / 6%);
+    ),
+    #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 7px;
   font-size: 0.72rem;
   font-weight: 750;
@@ -459,15 +503,15 @@ body {
 }
 
 .command-camera-tile.status-Online .command-camera-visual {
-  color: #71e7c8;
-  box-shadow: inset 0 0 0 1px rgb(68 215 182 / 12%);
+  color: #047857;
+  box-shadow: inset 0 0 0 1px rgb(15 118 110 / 12%);
 }
 
 .command-camera-tile.status-Offline .command-camera-visual {
-  color: #ff8da1;
+  color: #dc2626;
   background:
-    radial-gradient(circle at 75% 25%, rgb(255 88 116 / 12%), transparent 36%),
-    #0a1825;
+    radial-gradient(circle at 75% 25%, rgb(220 38 38 / 7%), transparent 36%),
+    #fef2f2;
 }
 
 .dashboard-list-row {
@@ -477,9 +521,9 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  border: 1px solid rgb(255 255 255 / 7%);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  background: rgb(5 16 26 / 36%);
+  background: #f8fafc;
 }
 
 .preview-description {
@@ -495,17 +539,19 @@ body {
   place-items: center;
   padding: 1rem;
   text-align: center;
-  border: 1px dashed rgb(255 255 255 / 10%);
+  border: 1px dashed #cbd5e1;
   border-radius: 8px;
+  background: #f8fafc;
 }
 
 .dashboard-detail-drawer .MuiDrawer-paper {
   width: min(520px, 100vw);
-  color: #edf7ff;
-  border-left: 1px solid rgb(255 255 255 / 9%);
-  background:
-    radial-gradient(circle at 100% 0%, rgb(68 215 182 / 8%), transparent 22rem),
-    #0b1724;
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  color: #172033;
+  border-left: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 
 .dashboard-detail-panel {

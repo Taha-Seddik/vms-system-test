@@ -353,6 +353,16 @@
               always remains active as a fallback.
             </p>
           </div>
+          <div class="callout">
+            <span class="callout-title">Sidebar overflow correction</span>
+            <p>
+              The Drawer owns the fixed width while its internal navigation
+              uses 100% of the available content box. Horizontal overflow is
+              clipped at the page, Drawer, navigation, content, and footer
+              boundaries; long labels use ellipsis instead of widening the
+              sidebar.
+            </p>
+          </div>
         </section>
 
         <section class="section" id="dependencies">
@@ -390,7 +400,7 @@
                 <tr>
                   <td>Material UI</td>
                   <td>Responsive metrics, cards, chips, progress, and empty states</td>
-                  <td>Reuses the established dark operations theme</td>
+                  <td>Uses a simple light administration palette with one blue accent</td>
                 </tr>
               </tbody>
             </table>

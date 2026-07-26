@@ -264,7 +264,10 @@ desktop and a solid mobile header with an off-canvas menu. Operational list
 cards show at most five rows; their View details/View all actions open a
 right-side drawer with the complete result returned by the command-center API.
 Camera and camera-group management remain together in one Administrator
-workspace.
+workspace. The application uses a simple light palette with white surfaces,
+soft-gray page backgrounds, and one blue accent. Sidebar contents are
+constrained to the Drawer width, and long navigation text truncates rather than
+causing horizontal scrolling.
 
 The dashboard uses these measurable definitions:
 
