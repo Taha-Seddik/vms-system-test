@@ -26,19 +26,24 @@ const connection = new HubConnectionBuilder()
   .build()
 
 let timeout
+let notificationHandler
 try {
   await connection.start()
 
   const notification = new Promise((resolve, reject) => {
-    const handler = (message) => {
-      connection.off('DashboardChanged', handler)
+    notificationHandler = (message) => {
+      if (!message?.revision || message.reason !== 'camera-health-tested') {
+        return
+      }
+
+      connection.off('DashboardChanged', notificationHandler)
       resolve(message)
     }
     timeout = setTimeout(
       () => reject(new Error('DashboardChanged was not received within 15 seconds.')),
       15_000,
     )
-    connection.on('DashboardChanged', handler)
+    connection.on('DashboardChanged', notificationHandler)
   })
 
   const probeResponse = await fetch(
@@ -56,14 +61,14 @@ try {
 
   const message = await notification
   clearTimeout(timeout)
-  if (!message?.revision || message.reason !== 'camera-health-tested') {
-    throw new Error('DashboardChanged returned an unexpected payload.')
-  }
 
   console.log(
     `[PASS] SignalR delivered dashboard revision ${message.revision} (${message.reason}).`,
   )
 } finally {
   clearTimeout(timeout)
+  if (notificationHandler) {
+    connection.off('DashboardChanged', notificationHandler)
+  }
   await connection.stop()
 }
